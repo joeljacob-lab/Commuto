@@ -211,7 +211,6 @@ Database: **MongoDB** (document store) — each "table" is a **collection**. Thi
 | `reportedBy` | String | FK → `users._id`, required | |
 | `against` | String | FK → `users._id`, required | |
 | `rideId` | ObjectId | FK → `rides._id`, optional | |
-| `reason` | String | enum: `unsafe_driving`, `no_show`, `harassment`, `fake_info`, `other` | |
 | `description` | String | optional | |
 | `status` | String | enum: `open`, `investigating`, `resolved`, `dismissed`, default `open` | |
 | `handledBy` | String | FK → `users._id`, optional | |
