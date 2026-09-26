@@ -1,4 +1,4 @@
-Commuto
+# Commuto
 
 > **Because someone's already driving your way.**
 
@@ -165,3 +165,12 @@ commuto/
         ├── Rider views
         ├── Driver views
         └── Admin views
+
+For the complete file structure, see:
+
+Commuto_Folder_Structure.md
+Commuto_Implementation_Phases.md
+
+These documents contain the detailed project architecture and the implementation order followed by the project.
+
+
