@@ -120,6 +120,11 @@ The following items were simplified or deferred to keep the codebase completely 
 * **Context:** In early draft, `Department` had a natural string PK (`"CSE"`, `"MCA"`).
 * **Updated Design:** `Department` uses standard auto-generated `ObjectId` as PK, and `deptCode` is completely removed. In `User.js`, `deptId` is `{ type: Schema.Types.ObjectId, ref: 'Department' }`. Only `User` (`collegeId`) and `Vehicle` (`registrationNumber`) use natural keys.
 
+### [REG-08] `Report` Model — `reason` Field Removal
+* **Phase Effective:** **Phase 1 & Phase 10**
+* **Context:** Previously, `Report` had an enum `reason` field (`unsafe_driving`, `no_show`, etc.).
+* **Updated Design:** The `reason` field has been removed in favor of free-form `description` text. Controller and frontend report submissions in Phase 10 will send complaint context via `description` without enum constraints.
+
 ---
 
 ## 4. Summary of Verification Completed in Phase 0
