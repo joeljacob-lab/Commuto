@@ -115,6 +115,11 @@ The following items were simplified or deferred to keep the codebase completely 
 * **Context:** Currently points to `mongodb://127.0.0.1:27017/commuto`.
 * **Action Required:** Whenever the developer starts MongoDB locally or provides a MongoDB Atlas connection string, update `MONGODB_URI` in `backend/.env`.
 
+### [REG-07] `Department` Model Schema Update
+* **Phase Effective:** **Phase 1 & Phase 3**
+* **Context:** In early draft, `Department` had a natural string PK (`"CSE"`, `"MCA"`).
+* **Updated Design:** `Department` uses standard auto-generated `ObjectId` as PK, and `deptCode` is completely removed. In `User.js`, `deptId` is `{ type: Schema.Types.ObjectId, ref: 'Department' }`. Only `User` (`collegeId`) and `Vehicle` (`registrationNumber`) use natural keys.
+
 ---
 
 ## 4. Summary of Verification Completed in Phase 0

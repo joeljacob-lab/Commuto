@@ -21,7 +21,7 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ## Phase 1 — Data Models
 
-**Build:** all 12 Mongoose schemas in `backend/models/`, exactly matching §6 of the master spec — field names, types, enums, and **natural-key `_id`s** (`Department`, `User` = `collegeId`, `Vehicle` = `registrationNumber`; everything else default `ObjectId`).
+**Build:** all 12 Mongoose schemas in `backend/models/`, exactly matching §6 of the master spec — field names, types, enums, and **natural-key `_id`s** (`User` = `collegeId`, `Vehicle` = `registrationNumber`; `Department` and all other collections use default auto-generated `ObjectId`).
 
 **Order within this phase** (respects FK dependency):
 1. `Department.js`
@@ -37,7 +37,7 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 11. `Report.js`
 12. `Notification.js`
 
-**Verify:** write a throwaway script (or use `mongosh`) to insert one document into each collection and confirm the natural-key `_id`s save correctly (e.g. a `User` document's `_id` is literally the collegeId string, not an ObjectId).
+**Verify:** write a throwaway script (or use `mongosh`) to insert one document into each collection and confirm the natural-key `_id`s save correctly (e.g. a `User` document's `_id` is literally the collegeId string, not an ObjectId, while `Department` gets an auto-generated ObjectId).
 
 ---
 
@@ -54,9 +54,9 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ## Phase 3 — Departments
 
-**Build:** `departmentController.js` + `departmentRoutes.js` (list, admin-only create), seed a handful of departments (e.g. `CSE`, `MCA`, `ECE`) via a small seed script. Frontend: `admin/DepartmentManagement.jsx`, and wire the department dropdown into `Register.jsx`.
+**Build:** `departmentController.js` + `departmentRoutes.js` (list, admin-only create), seed a handful of departments (e.g. `deptName: 'Computer Science and Engineering', programName: 'B.Tech'`) via a small seed script. Frontend: `admin/DepartmentManagement.jsx`, and wire the department dropdown into `Register.jsx`.
 
-**Verify:** registering a user now requires selecting a real `deptId`; the FK resolves correctly (`user.deptId` matches an existing `departments._id`).
+**Verify:** registering a user now requires selecting a real `deptId`; the FK resolves correctly (`user.deptId` matches an existing `departments._id` ObjectId).
 
 *Why this phase is small and early: `users.deptId` depends on departments existing, so this has to land before you consider Phase 2 "fully done" in practice — build it right after auth so registration is complete end-to-end.*
 

@@ -19,16 +19,15 @@ All detailed specifications are permanently maintained in `docs/`:
 ## Critical Architectural & Database Rules (Schema v2)
 
 1. **Natural Primary Keys (`_id: false` in Mongoose schema options):**
-   - **`Department`**: `_id` is String (e.g. `"CSE"`, `"MCA"`).
    - **`User`**: `_id` is String (College Roll/Admission Number, e.g. `"MCA2024017"`).
      - *Removed:* `verificationLevel` (college domain email + OTP ensures 100% verified accounts by definition).
      - *Removed:* `rating` / `ratingCount` (derived dynamically on demand: `AVG(reviews.rating) WHERE toUserId = X`).
    - **`Vehicle`**: `_id` is String (Registration number normalized uppercase, no spaces/hyphens, e.g. `"KL07AB1234"`). Pre-save hook normalizes before save.
-   - All other 9 collections (`routepool`, `ride`, `fuelrate`, `booking`, `walletledger`, `trustedge`, `review`, `report`, `notification`) use default `ObjectId`.
+   - All other 10 collections (`department`, `routepool`, `ride`, `fuelrate`, `booking`, `walletledger`, `trustedge`, `review`, `report`, `notification`) use default auto-generated `ObjectId`.
 2. **Foreign Key Typing:**
    - Any reference to `User` (`driverId`, `ownerId`, `passengerId`, `userId`, `userA`, `userB`, `fromUserId`, `toUserId`, `reportedBy`, `against`, `setBy`, `verifiedBy`, `handledBy`) MUST be `{ type: String, ref: 'User' }`, NOT `ObjectId`.
    - Any reference to `Vehicle` (`vehicleId`) MUST be `{ type: String, ref: 'Vehicle' }`.
-   - Any reference to `Department` (`deptId`) MUST be `{ type: String, ref: 'Department' }`.
+   - Any reference to `Department` (`deptId`) MUST be `{ type: mongoose.Schema.Types.ObjectId, ref: 'Department' }`.
 3. **Escrow & Wallet Ledger:**
    - Append-only audit trail in `walletledger` (`topup`, `hold`, `release`, `forfeit`, `payout`, `withdrawal`).
    - `walletBalance` in `users` represents available spendable balance (excluding held amounts).

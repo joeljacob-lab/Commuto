@@ -141,12 +141,12 @@ frontend/src/
 
 ## 6. Database Schema
 
-MongoDB, 12 collections. **Primary keys use natural/business identifiers where one genuinely exists** (`collegeId` for users, `registrationNumber` for vehicles) rather than relying solely on auto-generated `ObjectId`; collections with no real-world natural identifier keep the default `_id`. In Mongoose this is done via `_id: { type: String }` combined with schema option `_id: false` to stop auto-generation, with the natural value assigned explicitly at creation.
+MongoDB, 12 collections. **Primary keys use natural/business identifiers where one genuinely exists** (`collegeId` for users, `registrationNumber` for vehicles) rather than relying solely on auto-generated `ObjectId`; collections with no real-world natural identifier (`departments`, `routepools`, `rides`, etc.) keep the default auto-generated `_id` (`ObjectId`). In Mongoose, natural keys use `_id: { type: String }` combined with schema option `_id: false` to stop auto-generation, with the natural value assigned explicitly at creation.
 
 ### 6.1 `departments`
 | Field | Type | Constraints | Description |
 |---|---|---|---|
-| `_id` | String | PK, e.g. `"CSE"`, `"MCA"` | Department code |
+| `_id` | ObjectId | PK, auto | Default auto-generated ObjectId |
 | `deptName` | String | required | Full department name |
 | `programName` | String | required | e.g. "B.Tech", "MCA" |
 
@@ -158,7 +158,7 @@ MongoDB, 12 collections. **Primary keys use natural/business identifiers where o
 | `email` | String | required, unique, college domain only | |
 | `passwordHash` | String | required | bcrypt |
 | `phone` | String | required, unique | |
-| `deptId` | String | FK → `departments._id`, required | |
+| `deptId` | ObjectId | FK → `departments._id`, required | References departments collection |
 | `year` | Number | required | |
 | `roles` | [String] | enum: `rider`,`driver`,`admin` | Multi-role |
 | `walletBalance` | Number | default 0 | Spendable, excludes held funds |

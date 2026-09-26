@@ -1,6 +1,6 @@
 # Commuto — Database Table Design & Schema (v2)
 
-Database: **MongoDB** (document store) — each "table" is a **collection**. This version replaces MongoDB's auto-generated `ObjectId` with **natural/business keys** wherever one exists (`collegeId`, `registrationNumber`), normalizes `department` into its own collection, and removes two fields that shouldn't have been stored on `users` in the first place. Collections with no natural key candidate (`review`, `report`, `notification`, `trustedge`, `walletledger`, `fuelrate`) keep the default `_id`.
+Database: **MongoDB** (document store) — each "table" is a **collection**. This version replaces MongoDB's auto-generated `ObjectId` with **natural/business keys** where an external unique identifier genuinely exists (`collegeId` for users, `registrationNumber` for vehicles), normalizes `department` into its own collection (using standard auto-generated `ObjectId`), and removes two fields that shouldn't have been stored on `users` in the first place. Collections with no natural key candidate (`department`, `review`, `report`, `notification`, `trustedge`, `walletledger`, `fuelrate`, `routepool`, `ride`, `booking`) keep the default auto-generated `_id` (`ObjectId`).
 
 12 collections total: `department`, `user`, `vehicle`, `routepool`, `ride`, `fuelrate`, `booking`, `walletledger`, `trustedge`, `review`, `report`, `notification`.
 
@@ -12,7 +12,7 @@ Database: **MongoDB** (document store) — each "table" is a **collection**. Thi
 
 | Field | Type | Constraints | Description |
 |---|---|---|---|
-| `_id` | String | **PK**, e.g. `"CSE"`, `"MCA"` | Short department code, chosen deliberately as the key so `users` can reference a human-readable ID directly |
+| `_id` | ObjectId | **PK**, auto-generated | Default auto-generated ObjectId |
 | `deptName` | String | required | e.g. "Computer Science and Engineering" |
 | `programName` | String | required | e.g. "B.Tech", "MCA" |
 
@@ -29,7 +29,7 @@ Database: **MongoDB** (document store) — each "table" is a **collection**. Thi
 | `email` | String | required, unique, college domain only | |
 | `passwordHash` | String | required | bcrypt hash |
 | `phone` | String | required, unique | |
-| `deptId` | String | FK → `departments._id`, required | Replaces the old free-text `department` field |
+| `deptId` | ObjectId | FK → `departments._id`, required | References departments collection |
 | `year` | Number | required | Current year/semester |
 | `roles` | [String] | enum: `rider`, `driver`, `admin` | Multi-role support |
 | `walletBalance` | Number | default 0 | Spendable balance (excludes held amounts) |
@@ -264,10 +264,9 @@ user ──1───*── notification
 ```javascript
 // models/Department.js
 const departmentSchema = new Schema({
-  _id: { type: String },                 // e.g. "CSE", "MCA" — set explicitly, no auto-generation
   deptName: { type: String, required: true },
   programName: { type: String, required: true },
-}, { _id: false });                       // _id: false tells Mongoose not to auto-add an ObjectId _id
+}, { timestamps: true });                 // Uses default auto-generated ObjectId _id
 
 // models/User.js
 const userSchema = new Schema({
@@ -276,7 +275,7 @@ const userSchema = new Schema({
   email: { type: String, required: true, unique: true },
   passwordHash: { type: String, required: true },
   phone: { type: String, required: true, unique: true },
-  deptId: { type: String, ref: 'Department', required: true },
+  deptId: { type: Schema.Types.ObjectId, ref: 'Department', required: true },
   year: { type: Number, required: true },
   roles: { type: [String], enum: ['rider', 'driver', 'admin'], default: ['rider'] },
   walletBalance: { type: Number, default: 0 },
