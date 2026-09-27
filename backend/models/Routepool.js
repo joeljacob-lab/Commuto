@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 /**
@@ -127,4 +127,4 @@ routePoolSchema.index({ status: 1 });
 routePoolSchema.index({ 'origin.point': '2dsphere' });
 routePoolSchema.index({ 'destination.point': '2dsphere' });
 
-module.exports = mongoose.model('RoutePool', routePoolSchema);
+export default mongoose.model('RoutePool', routePoolSchema);

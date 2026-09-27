@@ -125,6 +125,11 @@ The following items were simplified or deferred to keep the codebase completely 
 * **Context:** Previously, `Report` had an enum `reason` field (`unsafe_driving`, `no_show`, etc.).
 * **Updated Design:** The `reason` field has been removed in favor of free-form `description` text. Controller and frontend report submissions in Phase 10 will send complaint context via `description` without enum constraints.
 
+### [REG-09] Module System Standardization — ES Modules (ESM) Only
+* **Phase Effective:** **Phase 1 Onwards**
+* **Context:** Backend was originally scaffolded using CommonJS (`type: "commonjs"`, `require`, `module.exports`).
+* **Updated Design:** The entire project (both backend and frontend) is standardized on modern ES Modules (`import` / `export` / `export default`). `backend/package.json` must be set to `"type": "module"`. In Node.js ESM, local relative imports must include explicit `.js` extensions (e.g., `import User from './models/User.js';`).
+
 ---
 
 ## 4. Summary of Verification Completed in Phase 0

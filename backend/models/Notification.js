@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 /**
@@ -50,4 +50,4 @@ const notificationSchema = new Schema(
 // Powers the unread-count / notification-bell query efficiently.
 notificationSchema.index({ userId: 1, read: 1 });
 
-module.exports = mongoose.model('Notification', notificationSchema);
+export default mongoose.model('Notification', notificationSchema);

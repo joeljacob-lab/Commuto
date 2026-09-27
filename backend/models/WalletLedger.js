@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 /**
@@ -46,4 +46,4 @@ const walletLedgerSchema = new Schema(
 walletLedgerSchema.index({ userId: 1, createdAt: -1 });
 walletLedgerSchema.index({ bookingId: 1 });
 
-module.exports = mongoose.model('WalletLedger', walletLedgerSchema);
+export default mongoose.model('WalletLedger', walletLedgerSchema);

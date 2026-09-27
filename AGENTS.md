@@ -46,6 +46,10 @@ All detailed specifications are permanently maintained in `docs/`:
 7. **Pairwise Trust Graph (`trustedges`):**
    - Exactly one record per user pair (`userA < userB` by collegeId convention).
    - Tracks `mutualRideCount`, `sharedDepartment`, `reportFlags`.
+8. **Module System — ES Modules (ESM) ONLY:**
+   - ALL code (both backend and frontend) MUST strictly use modern ES Modules syntax (`import` / `export` / `export default`).
+   - NEVER generate CommonJS syntax (`require`, `module.exports`, `exports.*`).
+   - Backend `package.json` must be set to `"type": "module"`. Relative local imports in ESM require explicit file extensions (e.g., `import connectDB from './config/db.js';`).
 
 ---
 

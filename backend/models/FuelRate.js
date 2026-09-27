@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 /**
@@ -38,4 +38,4 @@ const fuelRateSchema = new Schema(
 // FuelRate.findOne().sort({ effectiveDate: -1 })
 fuelRateSchema.index({ effectiveDate: -1 });
 
-module.exports = mongoose.model('FuelRate', fuelRateSchema);
+export default mongoose.model('FuelRate', fuelRateSchema);

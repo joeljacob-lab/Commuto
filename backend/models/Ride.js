@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 /**
@@ -162,4 +162,4 @@ rideSchema.index({ driverId: 1 });
 rideSchema.index({ date: 1, status: 1 });
 rideSchema.index({ 'origin.point': '2dsphere' });
 
-module.exports = mongoose.model('Ride', rideSchema);
+export default mongoose.model('Ride', rideSchema);

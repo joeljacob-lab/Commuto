@@ -8,3 +8,4 @@ Always adhere strictly to:
 3. Escrow wallet rules, atomic seat reservations, and roster lock cancellation lifecycle.
 4. Pure deterministic matching engine and daily dynamic cost calculations.
 5. 14-phase build cycle (Phase 0 to Phase 13).
+6. Strict ES Modules (ESM) Only: Always generate `import` / `export` syntax for all backend and frontend code. Never use CommonJS (`require`, `module.exports`). Ensure explicit `.js` extensions on relative imports in backend.

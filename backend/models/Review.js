@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 /**
@@ -49,4 +49,4 @@ const reviewSchema = new Schema(
 reviewSchema.index({ rideId: 1, fromUserId: 1, toUserId: 1 }, { unique: true });
 reviewSchema.index({ toUserId: 1 }); // feeds the rating aggregation
 
-module.exports = mongoose.model('Review', reviewSchema);
+export default mongoose.model('Review', reviewSchema);

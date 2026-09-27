@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 /**
@@ -76,11 +76,10 @@ vehicleSchema.index({ ownerId: 1 });
 // Normalize the registration number into the _id before first save.
 // This is the single place the normalization rule lives — controllers
 // should NOT re-implement this logic, just pass the raw user input in.
-vehicleSchema.pre('save', function (next) {
+vehicleSchema.pre('save', function () {
   if (this.isNew && this._id) {
     this._id = this._id.toUpperCase().replace(/\s|-/g, '');
   }
-  next();
 });
 
-module.exports = mongoose.model('Vehicle', vehicleSchema);
+export default mongoose.model('Vehicle', vehicleSchema);

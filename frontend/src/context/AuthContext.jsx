@@ -14,7 +14,10 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   });
-  const [loading] = useState(false);
+
+  // Loading state (reserved for Phase 2 when fetching from API)
+  const loading = false;
+
   const logout = () => {
     setUser(null);
     setToken(null);
