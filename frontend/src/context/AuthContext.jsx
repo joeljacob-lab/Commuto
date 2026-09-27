@@ -1,10 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
+import { getCurrentUser } from '../services/api';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  // Initialize state directly from localStorage
   const [token, setToken] = useState(() => localStorage.getItem('commuto_token') || null);
   const [user, setUser] = useState(() => {
     try {
@@ -14,9 +14,9 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   });
-
-  // Loading state (reserved for Phase 2 when fetching from API)
-  const loading = false;
+  // Starts true whenever a token exists, so ProtectedRoute doesn't
+  // redirect to /login for a split second before verification finishes.
+  const [loading, setLoading] = useState(!!localStorage.getItem('commuto_token'));
 
   const logout = () => {
     setUser(null);
@@ -40,11 +40,34 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  // Reserved for Phase 2: verify token validity with backend GET /api/auth/me
+  // Phase 2: on app load, if a token exists, verify it against the
+  // backend instead of blindly trusting the cached localStorage user.
+  // Handles the case where the token expired since the last visit, or
+  // the account was changed/removed server-side.
   useEffect(() => {
-    if (token) {
-      // Will verify token with backend in Phase 2
-    }
+    const verifyToken = async () => {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const { data } = await getCurrentUser();
+        setUser(data.user);
+        localStorage.setItem('commuto_user', JSON.stringify(data.user));
+      } catch {
+        // Token invalid/expired — the api.js response interceptor already
+        // cleared localStorage; mirror that in state here too.
+        setUser(null);
+        setToken(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifyToken();
+    // Deliberately only re-runs if the token itself changes (e.g. after
+    // login/logout), not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const value = {

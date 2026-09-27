@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import Login from './pages/Login';
+import Register from './pages/Register';
 
 function PlaceholderHome() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -116,6 +118,8 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<PlaceholderHome />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
