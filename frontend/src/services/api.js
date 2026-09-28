@@ -36,4 +36,10 @@ export const registerUser = (formData) => api.post('/auth/register', formData);
 export const loginUser = (credentials) => api.post('/auth/login', credentials);
 export const getCurrentUser = () => api.get('/auth/me');
 
+// --- Department endpoints ---
+export const getDepartments = () => api.get('/departments');
+export const createDepartment = (data) => api.post('/departments', data);
+export const updateDepartment = (id, data) => api.put(`/departments/${id}`, data);
+export const deleteDepartment = (id) => api.delete(`/departments/${id}`);
+
 export default api;

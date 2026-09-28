@@ -19,7 +19,7 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ---
 
-## Phase 1 — Data Models
+## Phase 1 — Data Models (COMPLETED)
 
 **Build:** all 12 Mongoose schemas in `backend/models/`, exactly matching §6 of the master spec — field names, types, enums, and **natural-key `_id`s** (`User` = `collegeId`, `Vehicle` = `registrationNumber`; `Department` and all other collections use default auto-generated `ObjectId`).
 
@@ -41,7 +41,7 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ---
 
-## Phase 2 — Auth & RBAC
+## Phase 2 — Auth & RBAC (COMPLETED)
 
 **Build:**
 - `utils/generateToken.js`, `middleware/authMiddleware.js` (JWT verify), `middleware/roleMiddleware.js` (RBAC check).

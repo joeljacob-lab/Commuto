@@ -62,6 +62,15 @@ export const registerUser = async (req, res, next) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    // Users may only self-assign rider/driver. 'admin' can never come from
+    // the request body, or anyone could register as an admin. Admins are
+    // promoted manually (see seed/makeAdmin.js). Everyone is a rider first.
+    const selfAssignable = ['rider', 'driver'];
+    const requestedRoles = Array.isArray(roles)
+      ? roles.filter((r) => selfAssignable.includes(r))
+      : [];
+    const finalRoles = [...new Set(['rider', ...requestedRoles])];
+
     const user = await User.create({
       _id: collegeId,
       name,
@@ -70,7 +79,7 @@ export const registerUser = async (req, res, next) => {
       phone,
       deptId,
       year,
-      roles: roles && roles.length > 0 ? roles : ['rider'],
+      roles: finalRoles,
     });
 
     const token = generateToken(user);

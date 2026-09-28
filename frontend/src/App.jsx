@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import ProtectedRoute from './components/ProtectedRoute';
+import DepartmentManagement from './pages/admin/DepartmentManagement';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
@@ -121,6 +123,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="*" element={<NotFound />} />
+          <Route path="/admin/departments" element={<ProtectedRoute requiredRole="admin"> <DepartmentManagement /> </ProtectedRoute>}/>
         </Routes>
       </Router>
     </AuthProvider>
