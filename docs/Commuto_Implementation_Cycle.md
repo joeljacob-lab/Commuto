@@ -52,7 +52,7 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ---
 
-## Phase 3 — Departments
+## Phase 3 — Departments (COMPLETED)
 
 **Build:** `departmentController.js` + `departmentRoutes.js` (list, admin-only create), seed a handful of departments (e.g. `deptName: 'Computer Science and Engineering', programName: 'B.Tech'`) via a small seed script. Frontend: `admin/DepartmentManagement.jsx`, and wire the department dropdown into `Register.jsx`.
 
@@ -62,7 +62,7 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ---
 
-## Phase 4 — Vehicles
+## Phase 4 — Vehicles (COMPLETED)
 
 **Build:** `utils/normalizeRegNo.js`, `config/cloudinary.js`, `vehicleController.js` + `vehicleRoutes.js` (driver: add vehicle with doc upload; admin: list pending, approve/reject). Frontend: `VehicleForm.jsx`, `VehicleManagement.jsx`, `admin/VehicleVerificationQueue.jsx`.
 

@@ -8,6 +8,7 @@ import connectDB from './config/db.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 import authRoutes from './routes/authRoutes.js';
 import departmentRoutes from './routes/departmentRoutes.js';
+import vehicleRoutes from './routes/vehicleRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -84,6 +85,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/departments', departmentRoutes);
+app.use('/api/vehicles', vehicleRoutes);
 
 // Error handling middleware
 app.use(notFound);

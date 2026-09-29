@@ -42,4 +42,10 @@ export const createDepartment = (data) => api.post('/departments', data);
 export const updateDepartment = (id, data) => api.put(`/departments/${id}`, data);
 export const deleteDepartment = (id) => api.delete(`/departments/${id}`);
 
+// --- Vehicle endpoints ---
+export const addVehicle = (data) => api.post('/vehicles', data);
+export const getMyVehicles = () => api.get('/vehicles/me');
+export const getPendingVehicles = () => api.get('/vehicles/pending');
+export const updateVehicleStatus = (id, status) => api.put(`/vehicles/${id}/status`, { status });
+
 export default api;

@@ -14,8 +14,8 @@ This document tracks the current execution state of the Commuto project, detaile
 | **Phase 0** | Project Scaffolding, DB Config, Socket.IO Server, React/Vite/Tailwind Shell, AuthContext Skeleton | **COMPLETED** | Fully verified & error-free |
 | **Phase 1** | Data Models (12 Mongoose Models with Natural Keys) | **COMPLETED** | Fully verified |
 | **Phase 2** | Auth & RBAC (JWT, bcrypt, college domain email, `/api/auth/me`) | **COMPLETED** | Fully verified |
-| **Phase 3** | Departments (CRUD, seed script, registration dropdown) | Pending | Depends on Phase 2 |
-| **Phase 4** | Vehicles & Admin Verification Queue (regNo PK, Cloudinary docs) | Pending | Depends on Phase 3 |
+| **Phase 3** | Departments (CRUD, seed script, registration dropdown) | **COMPLETED** | Fully verified |
+| **Phase 4** | Vehicles & Admin Verification Queue (regNo PK, Cloudinary docs) | **COMPLETED** | Fully verified & tested |
 | **Phase 5** | Fuel Rates Management (Historical rate tracking) | Pending | Depends on Phase 4 |
 | **Phase 6** | Route Pools (Driver recurring pools, map polylines & distance) | Pending | Depends on Phase 5 |
 | **Phase 7** | Daily Ride Generation Job (Snapshot fuel rates, lock time) | Pending | Depends on Phase 6 |
@@ -28,7 +28,7 @@ This document tracks the current execution state of the Commuto project, detaile
 
 ---
 
-## 2. Current Implementation Status (End of Phase 2)
+## 2. Current Implementation Status (End of Phase 4)
 
 ### Backend
 * **Database & Config**: Mongoose models fully initialized using ESM. Natural keys correctly implemented for `User` (`collegeId`) and `Vehicle` (`registrationNumber`). Environment fully configured.
@@ -36,18 +36,36 @@ This document tracks the current execution state of the Commuto project, detaile
   * Express app with CORS (`credentials: true`, pointing to `CLIENT_URL`), JSON parsing (`10mb` limit), and urlencoded body parsing.
   * Root health routes implemented: `GET /` and `GET /api/health`.
   * Error middleware wired: `notFound` (404) and `errorHandler`.
-  * API mounted: `app.use('/api/auth', authRoutes)`.
+  * API mounted: `app.use('/api/auth', authRoutes)`, `app.use('/api/departments', departmentRoutes)`, `app.use('/api/vehicles', vehicleRoutes)`.
 * **Auth & RBAC**:
   * Controllers: `registerUser` (with unique checks and domain constraints), `loginUser`, `getMe`.
   * Middleware: `protect` (JWT verification) and `requireRole` (RBAC access checks) working correctly.
+* **Departments**:
+  * Controllers & Routes: Full CRUD capabilities via `departmentController.js`.
+  * Protections: Creation/Deletion gated behind `requireRole('admin')`, fetching is public. Delete constraint prevents removal of a department if users are attached.
+* **Vehicles & Cloudinary Integration**:
+  * `backend/config/cloudinary.js`: Cloudinary v2 SDK configuration for direct media uploads.
+  * `backend/utils/normalizeRegNo.js`: Helper function to sanitize/normalize vehicle registration numbers (strips spaces and hyphens, converts to uppercase).
+  * `backend/controllers/vehicleController.js`:
+    * `addVehicle`: Driver vehicle registration with Base64 Cloudinary upload, natural key normalization (`_id: registrationNumber`), duplicate checking (`409 Conflict`), required document validation.
+    * `getMyVehicles`: Driver fetches their registered vehicles.
+    * `getPendingVehicles`: Admin fetches pending verification list with populated owner info.
+    * `updateVehicleStatus`: Admin approves/rejects vehicles and records `verifiedBy`.
+  * `backend/routes/vehicleRoutes.js`: Protected driver & admin routes with `requireRole`.
 
 ### Frontend
 * **Build Stack**: React 19 + Vite 8 + Tailwind CSS v4 + React Router v7.
-* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, a request interceptor for auto-injecting `Authorization: Bearer <token>`, and a response interceptor to handle `401 Unauthorized` responses gracefully.
+* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, a request interceptor for auto-injecting `Authorization: Bearer <token>`, and a response interceptor to handle `401 Unauthorized` responses gracefully. Added vehicle API client methods (`addVehicle`, `getMyVehicles`, `getPendingVehicles`, `updateVehicleStatus`).
 * **`frontend/src/context/AuthContext.jsx`**:
   * Implemented full token verification against `/api/auth/me` on load.
   * Correctly toggles `loading` state while fetching session validity.
-* **Routing**: `App.jsx` updated with `<Login>` and `<Register>` routes along with Phase 0 placeholders.
+* **Department Integration**:
+  * `Register.jsx` intelligently fetches departments and restricts `program` choices based on the selected `department`.
+  * `DepartmentManagement.jsx` fully implemented for Admins (Add, Edit, Delete).
+* **Vehicle Management**:
+  * `VehicleForm.jsx`: Driver vehicle registration form supporting model, type (`car`/`bike`), color, seat count, mileage, and multiple document uploads. Uses Base64 FileReader conversion avoiding the need for `multer` multipart configurations, enforces format restrictions (JPG, JPEG, PNG), and utilizes a DOM `useRef` to cleanly reset file inputs after submission.
+  * `VehicleVerificationQueue.jsx`: Admin verification queue with document preview links and reactive `refreshTrigger` state pattern to trigger clean re-fetching upon approval/rejection without cascading render warnings or race conditions.
+* **Routing**: `App.jsx` includes `<Login>`, `<Register>`, protected `<DepartmentManagement>` (`/admin/departments`), protected `<VehicleForm>` (`/driver/vehicles/add`), and protected `<VehicleVerificationQueue>` (`/admin/vehicles/pending`).
 
 ---
 
@@ -68,11 +86,9 @@ The following items were simplified or deferred to keep the codebase completely 
 * **Context:** `loading` state properly toggles on mount while fetching the initial backend JWT check.
 
 ### [REG-04] `server.js` — API Route Mounts
-* **Phase to Reintroduce:** **Phases 3 through 12**
-* **Context:** Root `/` and `/api/health` endpoints are active, and Phase 2 (`/api/auth`) is mounted.
+* **Phase to Reintroduce:** **Phases 5 through 12**
+* **Context:** Root, `/api/auth`, `/api/departments`, and `/api/vehicles` endpoints are actively mounted.
 * **What to mount sequentially:**
-  * Phase 3: `app.use('/api/departments', departmentRoutes)`
-  * Phase 4: `app.use('/api/vehicles', vehicleRoutes)`
   * Phase 5: `app.use('/api/fuelrates', fuelRateRoutes)`
   * Phase 6: `app.use('/api/routepools', routePoolRoutes)`
   * Phase 7 & 8: `app.use('/api/rides', rideRoutes)`

@@ -4,6 +4,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import DepartmentManagement from './pages/admin/DepartmentManagement';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import VehicleForm from './pages/VehicleForm.jsx';
+import VehicleVerificationQueue from './pages/admin/VehicleVerificationQueue.jsx';
 
 function PlaceholderHome() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -124,6 +126,8 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="*" element={<NotFound />} />
           <Route path="/admin/departments" element={<ProtectedRoute requiredRole="admin"> <DepartmentManagement /> </ProtectedRoute>}/>
+          <Route path="/driver/vehicles/add" element={<ProtectedRoute requiredRole="driver"><VehicleForm /></ProtectedRoute>} />
+          <Route path="/admin/vehicles/pending" element={<ProtectedRoute requiredRole="admin"><VehicleVerificationQueue /></ProtectedRoute>} />
         </Routes>
       </Router>
     </AuthProvider>
