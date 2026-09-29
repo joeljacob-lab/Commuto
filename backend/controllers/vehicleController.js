@@ -20,16 +20,20 @@ export const addVehicle = async (req, res, next) => {
     }
 
     // Upload base64 documents to Cloudinary
-    // resource_type: 'auto' lets Cloudinary detect image vs PDF vs other
-    // file types itself — without this, uploads default to 'image', which
-    // handles PDFs inconsistently (some PDFs upload fine, others fail
-    // depending on their internal structure).
     const uploadedUrls = [];
     for (const doc of documents) {
+      const isPdf = typeof doc === 'string' && doc.startsWith('data:application/pdf');
+
+      // Explicitly use resource_type: 'image' and pass format
       const uploadRes = await cloudinary.uploader.upload(doc, {
         folder: 'commuto/vehicles',
-        resource_type: 'raw',
+        resource_type: 'image',
+        format: isPdf ? 'pdf' : undefined,
       });
+
+      console.log("🔗 GENERATED URL:", uploadRes.secure_url);
+      
+      // Just push the exact URL Cloudinary gave us! No replacements!
       uploadedUrls.push(uploadRes.secure_url);
     }
 
