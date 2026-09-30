@@ -59,4 +59,10 @@ export const getMyRoutePools = () => api.get('/routepools/my');
 export const toggleRoutePoolStatus = (id) => api.put(`/routepools/${id}/status`);
 export const deleteRoutePool = (id) => api.delete(`/routepools/${id}`);
 
+// --- Ride endpoints ---
+export const createOneOffRide = (data) => api.post('/rides', data);
+export const getMyDriverRides = () => api.get('/rides/my');
+export const getRideDetails = (id) => api.get(`/rides/${id}`);
+export const triggerDailyGeneration = (date) => api.post('/rides/generate-daily', { date });
+
 export default api;

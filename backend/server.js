@@ -11,6 +11,8 @@ import departmentRoutes from './routes/departmentRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
 import fuelRateRoutes from './routes/fuelRateRoutes.js';
 import routePoolRoutes from './routes/routePoolRoutes.js';
+import rideRoutes from './routes/rideRoutes.js';
+import { startRideGenerationScheduler } from './jobs/dailyRideGeneratorJob.js';
 
 // Load environment variables
 dotenv.config();
@@ -90,6 +92,7 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/fuelrates', fuelRateRoutes);
 app.use('/api/routepools', routePoolRoutes);
+app.use('/api/rides', rideRoutes);
 
 // Error handling middleware
 app.use(notFound);
@@ -99,4 +102,5 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   console.log(`Commuto Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  startRideGenerationScheduler();
 });

@@ -86,19 +86,20 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ---
 
-## Phase 7 — Daily Ride Generation & One-Off Single-Day Rides
+## Phase 7 — Daily Ride Generation & One-Off Single-Day Rides (COMPLETED)
 
 **Build:**
-1. `jobs/dailyRideGeneratorJob.js`: For each active `routepool` matching today's recurrence day, create today's `ride` document, snapshot `fuelPricePerLitreUsed` from the current `fuelrates` entry, compute `rosterLockAt` and `estimatedCostPerHead`.
+1. `jobs/dailyRideGeneratorJob.js`: Idempotent generator matching recurrence days (defaults to tomorrow's schedule), snapshots `fuelPricePerLitreUsed` from current `fuelrates`, computes `rosterLockAt` (9:00 PM previous evening with late-creation safety fallback), and sets initial `estimatedCostPerHead`. Includes automated 5:00 PM evening background scheduler (`startRideGenerationScheduler`).
 2. **One-Off / Single-Day Ride Publishing (`POST /api/rides`)**:
    - Allows drivers to publish an ad-hoc, single-day trip (for exams, campus events, fests, or special weekend commutes) without creating a permanent recurring pool.
    - Saves with `routePoolId: null`.
-   - Snapshots the current fuel rate, calculates driving distance, sets `rosterLockAt`, and opens for booking immediately.
-3. `rideController.js` + `rideRoutes.js`: Endpoints for single-day ride creation (`POST /api/rides`), fetching ride details (`GET /api/rides/:id`), and driver ride list.
+   - Snapshots the current fuel rate, calculates driving distance via OSRM, sets `rosterLockAt`, and opens for booking immediately.
+3. `rideController.js` + `rideRoutes.js`: Endpoints for single-day ride creation (`POST /api/rides`), fetching ride details (`GET /api/rides/:id`), driver ride list (`GET /api/rides/my`), and on-demand generator trigger (`POST /api/rides/generate-daily`).
 4. `utils/haversine.js`: Spatial distance helper for route calculations.
+5. Frontend: `CreateOneOffRide.jsx` and `MyRides.jsx` dashboard.
 
 **Verify:**
-- Running the generation job (via `POST /admin/trigger-ride-generation` or scheduled task) produces a `ride` per active pool with frozen fuel price.
+- Running the generation job produces a `ride` per active pool with frozen fuel price, 9:00 PM roster lock, and idempotency.
 - Publishing a single-day one-off ride directly produces a valid `ride` document with `routePoolId = null`.
 
 ---

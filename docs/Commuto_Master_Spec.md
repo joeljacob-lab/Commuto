@@ -366,19 +366,23 @@ Distance calculations use the **haversine formula** (plain geometry on lat/lng, 
 
 ### 7.2 Daily Cost Calculation
 
-Cost is **never a flat stored fare** — it is recomputed every day from live inputs, because fuel price and headcount both vary daily.
+Cost is **never a flat stored fare** — it is recomputed every day from live inputs, because fuel price and headcount both vary daily. Commuto uses an **Equal Split Model (`1 Driver + Confirmed Riders`)** so that single riders or bike pillion passengers are never unfairly burdened with 100% of the trip's fuel bill.
 
 ```
 dailyTripCost = (distanceKm / mileageKmpl) × fuelPricePerLitreUsed
-costPerHead   = dailyTripCost / confirmedHeadcount
+costPerHead   = dailyTripCost / (1 + confirmedRiderCount)
 ```
 
 - `distanceKm` — fixed, from the route (stored on `routepools`).
 - `mileageKmpl` — self-reported once by the driver (stored on `vehicles`).
 - `fuelPricePerLitreUsed` — snapshotted per ride from the current `fuelrates` entry at generation time (so historical rides never silently reprice).
-- `confirmedHeadcount` — live count of `confirmed` bookings on that day's `ride`, frozen at `rosterLockAt`.
+- `1 + confirmedRiderCount` — total headcount sharing fuel (1 driver + all confirmed riders on that ride), frozen at `rosterLockAt`.
+- `estimatedCostPerHead` (pre-lock baseline) = `dailyTripCost / (1 + totalSeats)`.
 
-**Worked example:** 24 km route, 15 km/l vehicle, ₹105/l fuel, 3 confirmed riders → `dailyTripCost = (24/15)×105 = ₹168` → `costPerHead = ₹56`.
+**Worked examples:**
+1. **Car with 3 confirmed riders:** 24 km route, 15 km/l vehicle, ₹105/l fuel → `dailyTripCost = (24/15)×105 = ₹168`. Total headcount = 1 driver + 3 riders = 4 people → `costPerHead = 168 / 4 = ₹42`. (Each rider pays ₹42, and the driver saves ₹126).
+2. **Bike with 1 confirmed rider:** 20 km route, 40 km/l bike, ₹105/l fuel → `dailyTripCost = (20/40)×105 = ₹52.50`. Total headcount = 1 driver + 1 rider = 2 people → `costPerHead = 52.50 / 2 = ₹26.25`. (Both rider and driver save 50% on fuel).
+3. **Car with only 1 confirmed rider (low occupancy):** `dailyTripCost = ₹168`. Total headcount = 1 driver + 1 rider = 2 people → `costPerHead = 168 / 2 = ₹84` (protects the rider from paying for 3 empty seats!).
 
 Each `ride` stores two cost fields: `estimatedCostPerHead` (live, shown before lock) and `costPerHeadFinal` (frozen at `rosterLockAt`, authoritative).
 

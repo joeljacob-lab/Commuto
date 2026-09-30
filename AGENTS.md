@@ -37,7 +37,7 @@ All detailed specifications are permanently maintained in `docs/`:
    - Haversine formula for distance. Isolated and unit-tested.
 5. **Daily Cost Calculation (§7.2):**
    - `dailyTripCost = (distanceKm / mileageKmpl) * fuelPricePerLitreUsed`.
-   - `costPerHead = dailyTripCost / confirmedHeadcount`.
+   - **Equal Split Model:** `costPerHead = dailyTripCost / (1 + confirmedRiderCount)`. (The driver is counted as 1 seat in the carpool so single riders and bike passengers are never burdened with 100% of the fuel cost).
    - Frozen on `rides` as `costPerHeadFinal` at `rosterLockAt`.
 6. **Roster Lock & Cancellation Rules (§7.3):**
    - Atomic seat reservation via `findOneAndUpdate` with seat-count guard.

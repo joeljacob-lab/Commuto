@@ -9,6 +9,8 @@ import VehicleVerificationQueue from './pages/admin/VehicleVerificationQueue.jsx
 import FuelRateSettings from './pages/admin/FuelRateSettings';
 import CreateRoutePool from './pages/driver/CreateRoutePool';
 import MyRoutePools from './pages/driver/MyRoutePools';
+import CreateOneOffRide from './pages/driver/CreateOneOffRide';
+import MyRides from './pages/driver/MyRides';
 
 function PlaceholderHome() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -134,6 +136,8 @@ function App() {
           <Route path="/admin/fuel-rates" element={<ProtectedRoute requiredRole="admin"><FuelRateSettings /></ProtectedRoute>}/>
           <Route path="/driver/routepools/create" element={<ProtectedRoute requiredRole="driver"><CreateRoutePool /></ProtectedRoute>}/>
           <Route path="/driver/routepools" element={<ProtectedRoute requiredRole="driver"><MyRoutePools /></ProtectedRoute>}/>
+          <Route path="/driver/rides" element={<ProtectedRoute requiredRole="driver"><MyRides /></ProtectedRoute>}/>
+          <Route path="/driver/rides/create-single" element={<ProtectedRoute requiredRole="driver"><CreateOneOffRide /></ProtectedRoute>}/>
         </Routes>
       </Router>
     </AuthProvider>

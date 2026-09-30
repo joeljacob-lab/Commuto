@@ -18,7 +18,7 @@ This document tracks the current execution state of the Commuto project, detaile
 | **Phase 4** | Vehicles & Admin Verification Queue (regNo PK, Cloudinary docs) | **COMPLETED** | Fully verified & tested |
 | **Phase 5** | Fuel Rates Management (Historical rate tracking) | **COMPLETED** | Fully verified & tested |
 | **Phase 6** | Route Pools (Driver recurring pools, map polylines & distance) | **COMPLETED** | Fully verified & tested |
-| **Phase 7** | Daily Ride Generation & Single-Day Rides (Snapshot fuel rates, ad-hoc rides) | Pending | Depends on Phase 6 |
+| **Phase 7** | Daily Ride Generation & Single-Day Rides (Snapshot fuel rates, ad-hoc rides) | **COMPLETED** | Fully verified & tested |
 | **Phase 8** | Matching Engine (Pure deterministic scoring function + unit tests) | Pending | Depends on Phase 7 |
 | **Phase 9** | Bookings, Escrow Wallet & Roster Lock Job (Atomic seats, ledger holds) | Pending | Depends on Phase 8 |
 | **Phase 10** | Trust Graph, Reviews, Reports (Pairwise trustedge, mutual rating) | Pending | Depends on Phase 9 |
@@ -28,7 +28,7 @@ This document tracks the current execution state of the Commuto project, detaile
 
 ---
 
-## 2. Current Implementation Status (End of Phase 6)
+## 2. Current Implementation Status (End of Phase 7)
 
 ### Backend
 * **Database & Config**: Mongoose models fully initialized using ESM. Natural keys correctly implemented for `User` (`collegeId`) and `Vehicle` (`registrationNumber`). Environment fully configured.
@@ -36,7 +36,8 @@ This document tracks the current execution state of the Commuto project, detaile
   * Express app with CORS (`credentials: true`, pointing to `CLIENT_URL`), JSON parsing (`10mb` limit), and urlencoded body parsing.
   * Root health routes implemented: `GET /` and `GET /api/health`.
   * Error middleware wired: `notFound` (404) and `errorHandler`.
-  * API mounted: `app.use('/api/auth', authRoutes)`, `app.use('/api/departments', departmentRoutes)`, `app.use('/api/vehicles', vehicleRoutes)`, `app.use('/api/fuelrates', fuelRateRoutes)`, `app.use('/api/routepools', routePoolRoutes)`.
+  * API mounted: `app.use('/api/auth', authRoutes)`, `app.use('/api/departments', departmentRoutes)`, `app.use('/api/vehicles', vehicleRoutes)`, `app.use('/api/fuelrates', fuelRateRoutes)`, `app.use('/api/routepools', routePoolRoutes)`, `app.use('/api/rides', rideRoutes)`.
+  * Background cron initialized: `startRideGenerationScheduler()` automatically runs daily at 5:00 PM to generate tomorrow's recurring rides.
 * **Auth & RBAC**:
   * Controllers: `registerUser` (with unique checks and domain constraints), `loginUser`, `getMe`.
   * Middleware: `protect` (JWT verification) and `requireRole` (RBAC access checks) working correctly.
@@ -66,10 +67,22 @@ This document tracks the current execution state of the Commuto project, detaile
     * `toggleRoutePoolStatus`: One-click toggle between `active` and `paused`.
     * `deleteRoutePool`: Removes a standing pool.
   * `backend/routes/routePoolRoutes.js`: Driver-protected routes mounted at `/api/routepools`.
+* **Daily Ride Generation & One-Off Single-Day Rides**:
+  * `backend/utils/haversine.js`: Pure mathematical Haversine distance calculator between GPS coordinates.
+  * `backend/jobs/dailyRideGeneratorJob.js`:
+    * `generateDailyRides`: Idempotent generator matching recurrence days (defaults to tomorrow's schedule), snapshots `fuelPricePerLitreUsed` from current `fuelrates`, computes `rosterLockAt` (9:00 PM previous evening with late-creation safety fallback), and sets initial `estimatedCostPerHead`.
+    * `startRideGenerationScheduler`: Automated background scheduler running daily at 5:00 PM.
+    * `calculateRosterLockTime`: Morning rides ($\le$ 12:00 PM) lock at 9:00 PM previous evening; late/afternoon rides lock 1 hour before departure.
+  * `backend/controllers/rideController.js`:
+    * `createOneOffRide`: Ad-hoc single-day ride publishing with `routePoolId: null`, fuel rate snapshotting, dynamic cost calculation, and roster lock computation.
+    * `getMyDriverRides`: Lists driver's active and historical rides.
+    * `getRideById`: Fetches ride details populated with driver and vehicle info.
+    * `triggerDailyGeneration`: Manual testing endpoint supporting optional target date override.
+  * `backend/routes/rideRoutes.js`: Protected routes mounted at `/api/rides`.
 
 ### Frontend
 * **Build Stack**: React 19 + Vite 8 + Tailwind CSS v4 + React Router v7.
-* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, auth interceptors, 401 handling, and service endpoints for Auth, Departments, Vehicles, Fuel Rates, and Route Pools (`createRoutePool`, `getMyRoutePools`, `toggleRoutePoolStatus`, `deleteRoutePool`).
+* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, auth interceptors, 401 handling, and service endpoints for Auth, Departments, Vehicles, Fuel Rates, Route Pools, and Rides (`createOneOffRide`, `getMyDriverRides`, `getRideDetails`, `triggerDailyGeneration`).
 * **`frontend/src/context/AuthContext.jsx`**:
   * Implemented full token verification against `/api/auth/me` on load.
   * Correctly toggles `loading` state while fetching session validity.
@@ -84,7 +97,10 @@ This document tracks the current execution state of the Commuto project, detaile
 * **Route Pools & Driver Experience**:
   * `CreateRoutePool.jsx`: Interactive route creation form featuring OpenStreetMap Nominatim geocoding place search, HTML5 Geolocation (**"📍 Use Current Location"**), popular campus transit hub presets, approved vehicle selector, and recurrence days timetable picker. Raw coordinates are completely hidden from the user.
   * `MyRoutePools.jsx`: Driver dashboard displaying active/paused badges, road distance chips, recurrence days, timetable window, and one-click Pause/Resume and Delete controls.
-* **Routing**: `App.jsx` includes `<Login>`, `<Register>`, protected `<DepartmentManagement>` (`/admin/departments`), protected `<VehicleForm>` (`/driver/vehicles/add`), protected `<VehicleVerificationQueue>` (`/admin/vehicles/pending`), protected `<FuelRateSettings>` (`/admin/fuel-rates`), protected `<CreateRoutePool>` (`/driver/routepools/create`), and protected `<MyRoutePools>` (`/driver/routepools`).
+* **Ride Publishing & Dashboard**:
+  * `CreateOneOffRide.jsx`: Interface for publishing ad-hoc single-day rides for exams, tech fests, or special weekend commutes with real-time address search, seat capacity validation, and cost calculations.
+  * `MyRides.jsx`: Driver dashboard with visual distinction between `🔁 Recurring Pool Ride` and `🗓️ Single-Day Ride`, available seat counters, estimated share per head, frozen fuel rate used, roster lock countdowns, and on-demand generator trigger.
+* **Routing**: `App.jsx` includes `<Login>`, `<Register>`, protected `<DepartmentManagement>` (`/admin/departments`), protected `<VehicleForm>` (`/driver/vehicles/add`), protected `<VehicleVerificationQueue>` (`/admin/vehicles/pending`), protected `<FuelRateSettings>` (`/admin/fuel-rates`), protected `<CreateRoutePool>` (`/driver/routepools/create`), protected `<MyRoutePools>` (`/driver/routepools`), protected `<CreateOneOffRide>` (`/driver/rides/create-single`), and protected `<MyRides>` (`/driver/rides`).
 
 ---
 
@@ -105,23 +121,22 @@ The following items were simplified or deferred to keep the codebase completely 
 * **Context:** `loading` state properly toggles on mount while fetching the initial backend JWT check.
 
 ### [REG-04] `server.js` — API Route Mounts
-* **Phase to Reintroduce:** **Phases 7 through 12**
-* **Context:** Root, `/api/auth`, `/api/departments`, `/api/vehicles`, `/api/fuelrates`, and `/api/routepools` endpoints are actively mounted.
+* **Phase to Reintroduce:** **Phases 9 through 12**
+* **Context:** Root, `/api/auth`, `/api/departments`, `/api/vehicles`, `/api/fuelrates`, `/api/routepools`, and `/api/rides` endpoints are actively mounted.
 * **What to mount sequentially:**
-  * Phase 7 & 8: `app.use('/api/rides', rideRoutes)`
   * Phase 9: `app.use('/api/bookings', bookingRoutes)` & `app.use('/api/wallet', walletRoutes)`
   * Phase 10: `app.use('/api/reviews', reviewRoutes)` & `app.use('/api/reports', reportRoutes)`
   * Phase 11: `app.use('/api/notifications', notificationRoutes)`
   * Phase 12: `app.use('/api/admin', adminRoutes)`
 
 ### [FEAT-01] One-Off / Single-Day Ride Publishing (Phase 7 Special Feature)
-* **Status:** **SCHEDULED FOR PHASE 7**
+* **Status:** **RESOLVED IN PHASE 7**
 * **Context:** Beyond recurring commute pools (`RoutePool`), drivers frequently need to offer rides for ad-hoc, special occasions (e.g. Saturday exams, college symposiums/tech fests, campus placement drives, or one-off weekend trips).
 * **Architecture:**
   * Endpoint: `POST /api/rides`
   * Database Schema: `rides.routePoolId = null` (distinguishes ad-hoc single-day trips from pool-generated rides).
-  * Snapshots active `fuelrates` on creation, calculates road distance/polyline via `routeService`, computes initial `estimatedCostPerHead`, and sets `rosterLockAt`.
-  * Riders can search and book single-day rides through the exact same matching engine and escrow hold lifecycle.
+  * Snapshots active `fuelrates` on creation, calculates road distance/polyline via `routeService`, computes initial `estimatedCostPerHead`, and sets `rosterLockAt` (9:00 PM previous evening with fallback).
+  * Fully implemented in `rideController.js`, `CreateOneOffRide.jsx`, and displayed in `MyRides.jsx`.
 
 ### [REG-05] `server.js` & `Socket.IO` — Real-Time Event Dispatchers
 * **Phase to Reintroduce:** **Phase 11 (Notifications & Real-Time)**
@@ -147,6 +162,11 @@ The following items were simplified or deferred to keep the codebase completely 
 * **Phase Effective:** **Phase 1 Onwards**
 * **Context:** Backend was originally scaffolded using CommonJS (`type: "commonjs"`, `require`, `module.exports`).
 * **Updated Design:** The entire project (both backend and frontend) is standardized on modern ES Modules (`import` / `export` / `export default`). `backend/package.json` must be set to `"type": "module"`. In Node.js ESM, local relative imports must include explicit `.js` extensions (e.g., `import User from './models/User.js';`).
+
+### [REG-10] Equal Split Cost Calculation Model (§7.2)
+* **Phase Effective:** **Phase 7, Phase 8, Phase 9**
+* **Context:** In early design, `costPerHead = dailyTripCost / confirmedHeadcount` (passengers only). This risked dumping 100% of the fuel cost on a single rider if only 1 student booked, or on a 2-wheeler bike pillion passenger.
+* **Updated Design:** Adopted the **Equal Split Model**: `costPerHead = dailyTripCost / (1 + confirmedRiderCount)`. The driver is counted as 1 passenger/seat in the carpool so that single riders and bike passengers split fuel 50/50 and are never unfairly burdened. Initial pre-lock estimate uses `dailyTripCost / (1 + totalSeats)`.
 
 ---
 
