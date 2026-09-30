@@ -551,6 +551,7 @@ PUT    /api/routepools/:id
 DELETE /api/routepools/:id
 
 Rides
+POST   /api/rides                                     (publish one-off single-day ride, routePoolId=null)
 GET    /api/rides/search?origin=&destination=&time=   (invokes matching engine)
 GET    /api/rides/:id
 PUT    /api/rides/:id/cancel

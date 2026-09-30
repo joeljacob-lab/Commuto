@@ -70,7 +70,7 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ---
 
-## Phase 5 — Fuel Rates
+## Phase 5 — Fuel Rates (COMPLETED)
 
 **Build:** `fuelRateController` (fold into `adminController.js` or its own — small enough either way) + route for admin to set the current rate. Frontend: `admin/FuelRateSettings.jsx`.
 
@@ -78,19 +78,28 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ---
 
-## Phase 6 — Route Pools
+## Phase 6 — Route Pools (COMPLETED)
 
-**Build:** `routePoolController.js` + `routePoolRoutes.js` (driver create/edit/pause; requires an *approved* vehicle — enforce this check now). Integrate Maps API for route polyline + `distanceKm` on creation. Frontend: `RoutePoolForm.jsx`, `CreateRoutePool.jsx`.
+**Build:** `routePoolController.js` + `routePoolRoutes.js` (driver create/edit/pause; requires an *approved* vehicle — enforce this check now). Integrate Maps API (OSRM) for route polyline + `distanceKm` on creation. Frontend: `CreateRoutePool.jsx`, `MyRoutePools.jsx` (with address search, "Use Current Location" GPS, and presets).
 
-**Verify:** attempting to create a pool with an unapproved vehicle is rejected; a valid pool stores a real `distanceKm` from the Maps API response, not a placeholder.
+**Verify:** attempting to create a pool with an unapproved vehicle is rejected; a valid pool stores a real `distanceKm` and GeoJSON polyline from the routing engine, not a placeholder.
 
 ---
 
-## Phase 7 — Daily Ride Generation
+## Phase 7 — Daily Ride Generation & One-Off Single-Day Rides
 
-**Build:** `utils/haversine.js` (needed by matching next phase — fine to build now), `jobs/dailyRideGeneratorJob.js`: for each active `routepool`, create today's `ride`, snapshot `fuelPricePerLitreUsed` from the current `fuelrates` entry, compute `rosterLockAt` and an initial `estimatedCostPerHead` (using headcount = 0 or a placeholder until bookings exist). `rideController.js` + `rideRoutes.js` for basic read endpoints (`GET /rides/:id`).
+**Build:**
+1. `jobs/dailyRideGeneratorJob.js`: For each active `routepool` matching today's recurrence day, create today's `ride` document, snapshot `fuelPricePerLitreUsed` from the current `fuelrates` entry, compute `rosterLockAt` and `estimatedCostPerHead`.
+2. **One-Off / Single-Day Ride Publishing (`POST /api/rides`)**:
+   - Allows drivers to publish an ad-hoc, single-day trip (for exams, campus events, fests, or special weekend commutes) without creating a permanent recurring pool.
+   - Saves with `routePoolId: null`.
+   - Snapshots the current fuel rate, calculates driving distance, sets `rosterLockAt`, and opens for booking immediately.
+3. `rideController.js` + `rideRoutes.js`: Endpoints for single-day ride creation (`POST /api/rides`), fetching ride details (`GET /api/rides/:id`), and driver ride list.
+4. `utils/haversine.js`: Spatial distance helper for route calculations.
 
-**Verify:** running the job manually (expose a temporary `POST /admin/trigger-ride-generation` for testing) produces one `ride` per active pool, with a correctly frozen `fuelPricePerLitreUsed`.
+**Verify:**
+- Running the generation job (via `POST /admin/trigger-ride-generation` or scheduled task) produces a `ride` per active pool with frozen fuel price.
+- Publishing a single-day one-off ride directly produces a valid `ride` document with `routePoolId = null`.
 
 ---
 

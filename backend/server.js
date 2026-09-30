@@ -9,6 +9,8 @@ import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 import authRoutes from './routes/authRoutes.js';
 import departmentRoutes from './routes/departmentRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
+import fuelRateRoutes from './routes/fuelRateRoutes.js';
+import routePoolRoutes from './routes/routePoolRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -86,6 +88,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/fuelrates', fuelRateRoutes);
+app.use('/api/routepools', routePoolRoutes);
 
 // Error handling middleware
 app.use(notFound);

@@ -48,4 +48,15 @@ export const getMyVehicles = () => api.get('/vehicles/me');
 export const getPendingVehicles = () => api.get('/vehicles/pending');
 export const updateVehicleStatus = (id, status) => api.put(`/vehicles/${id}/status`, { status });
 
+// --- Fuel Rate endpoints ---
+export const getCurrentFuelRate = () => api.get('/fuelrates/current');
+export const getFuelRateHistory = () => api.get('/fuelrates/history');
+export const setFuelRate = (data) => api.post('/fuelrates', data);
+
+// --- RoutePool endpoints ---
+export const createRoutePool = (data) => api.post('/routepools', data);
+export const getMyRoutePools = () => api.get('/routepools/my');
+export const toggleRoutePoolStatus = (id) => api.put(`/routepools/${id}/status`);
+export const deleteRoutePool = (id) => api.delete(`/routepools/${id}`);
+
 export default api;
