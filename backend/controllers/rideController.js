@@ -56,7 +56,7 @@ export const createOneOffRide = async (req, res, next) => {
 
     const mileage = vehicle.mileageKmpl || 15;
     const dailyTripCost = (distanceKm / mileage) * fuelPrice;
-    const estimatedCostPerHead = Math.max(10, Math.round(dailyTripCost / seats));
+    const estimatedCostPerHead = Math.max(10, Math.round(dailyTripCost / (1 + seats)));
     const rosterLockAt = calculateRosterLockTime(rideDate, departureTime);
 
     // 6. Create One-Off Ride (routePoolId = null)

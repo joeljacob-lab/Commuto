@@ -87,7 +87,7 @@ export const generateDailyRides = async (targetDate) => {
     const vehicle = pool.vehicleId;
     const mileage = vehicle.mileageKmpl || 15;
     const dailyTripCost = (pool.distanceKm / mileage) * fuelPrice;
-    const estimatedCostPerHead = Math.round(dailyTripCost / pool.maxMembers);
+    const estimatedCostPerHead = Math.round(dailyTripCost / (1 + pool.maxMembers));
 
     // 5. Compute roster lock time (9:00 PM previous evening)
     const rosterLockAt = calculateRosterLockTime(normalizedDate, pool.departureWindowStart);
