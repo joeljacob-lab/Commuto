@@ -65,4 +65,10 @@ export const getMyDriverRides = () => api.get('/rides/my');
 export const getRideDetails = (id) => api.get(`/rides/${id}`);
 export const triggerDailyGeneration = (date) => api.post('/rides/generate-daily', { date });
 
+// ----Ride search endpoint----
+export const searchRides = (params) => {
+  const queryString = new URLSearchParams(params).toString();
+  return api.get(`/rides/search?${queryString}`);
+};
+
 export default api;

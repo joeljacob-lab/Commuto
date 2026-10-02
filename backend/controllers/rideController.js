@@ -4,6 +4,7 @@ import FuelRate from '../models/FuelRate.js';
 import normalizeRegNo from '../utils/normalizeRegNo.js';
 import { calculateRoute } from '../services/routeService.js';
 import { generateDailyRides, calculateRosterLockTime } from '../jobs/dailyRideGeneratorJob.js';
+import { scoreAndRankRides } from '../services/matchingService.js';
 
 // @desc    Publish a One-Off / Single-Day Ride (Ad-hoc trip)
 // @route   POST /api/rides
@@ -106,7 +107,7 @@ export const getMyDriverRides = async (req, res, next) => {
     const rides = await Ride.find({ driverId: req.user._id })
       .populate('vehicleId', 'model type seats mileageKmpl color')
       .sort({ date: -1, departureTime: -1 });
-
+      console.log(`My driver rides:`, rides.map(r => r._id));
     res.status(200).json({ rides });
   } catch (error) {
     next(error);
@@ -140,6 +141,62 @@ export const triggerDailyGeneration = async (req, res, next) => {
     res.status(200).json({
       message: `Generated ${result.generatedCount} ride(s) for ${result.targetDate}`,
       result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+// @desc    Search and match rides for a rider
+// @route   GET /api/rides/search
+// @access  Authenticated
+export const searchRides = async (req, res, next) => {
+  try {
+    const { originLng, originLat, destLng, destLat, date, time } = req.query;
+
+    if (!originLng || !originLat || !destLng || !destLat || !date || !time) {
+      return res.status(400).json({ message: 'Missing search parameters' });
+    }
+
+    const searchDate = new Date(date);
+    searchDate.setHours(0, 0, 0, 0);
+
+    // 1. Fetch all published rides with seats available for that day
+    const candidateRides = await Ride.find({
+      date: searchDate,
+      status: 'published',
+      availableSeats: { $gt: 0 },
+      driverId: { $ne: req.user._id } // Don't show the user their own rides!
+    })
+    
+      .populate('driverId', 'name collegeId') // Will populate dept once schema allows, keeping simple for now
+      .populate('vehicleId', 'model color type')
+      .lean(); // .lean() makes them raw JS objects, much faster to process!
+    console.log(`🔍 Search Date: ${searchDate.toISOString()} | Logged-in User: ${req.user._id} | Candidates Found in DB: ${candidateRides.length}`);  
+
+    // 2. Prep rider query
+    const riderQuery = {
+      time,
+      originCoordinates: [parseFloat(originLng), parseFloat(originLat)],
+      destinationCoordinates: [parseFloat(destLng), parseFloat(destLat)],
+    };
+
+    // 3. Inject Trust Signals (Optional: boost if driver & rider share a department later)
+    const candidatesWithTrust = candidateRides.map(ride => {
+      // Default verified trust. You can expand this based on trustedges later!
+      ride.trustScore = 0.8; 
+      return ride;
+    });
+    
+
+    // 4. Run through the Pure Matching Engine!
+    const rankedRides = scoreAndRankRides(riderQuery, candidatesWithTrust);
+
+    res.status(200).json({
+      resultsCount: rankedRides.length,
+      rides: rankedRides,
     });
   } catch (error) {
     next(error);

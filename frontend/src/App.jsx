@@ -11,6 +11,7 @@ import CreateRoutePool from './pages/driver/CreateRoutePool';
 import MyRoutePools from './pages/driver/MyRoutePools';
 import CreateOneOffRide from './pages/driver/CreateOneOffRide';
 import MyRides from './pages/driver/MyRides';
+import SearchRides from './pages/SearchRides.jsx';
 
 function PlaceholderHome() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -138,6 +139,7 @@ function App() {
           <Route path="/driver/routepools" element={<ProtectedRoute requiredRole="driver"><MyRoutePools /></ProtectedRoute>}/>
           <Route path="/driver/rides" element={<ProtectedRoute requiredRole="driver"><MyRides /></ProtectedRoute>}/>
           <Route path="/driver/rides/create-single" element={<ProtectedRoute requiredRole="driver"><CreateOneOffRide /></ProtectedRoute>}/>
+          <Route path="/search-rides" element={<SearchRides />} />
         </Routes>
       </Router>
     </AuthProvider>

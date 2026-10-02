@@ -70,23 +70,38 @@ function CreateRoutePool() {
     fetchVehicles();
   }, []);
 
-  // Free OpenStreetMap Geocoding Search
+  // Free OpenStreetMap Geocoding Search with instant preset matching
   const searchPlace = async (query, target) => {
-    if (!query.trim()) return;
+    const trimmed = query.trim();
+    if (!trimmed || trimmed.length < 3) return;
+
     if (target === 'origin') setSearchingOrigin(true);
     else setSearchingDest(true);
 
     try {
+      // 1. Instant local matching with campus presets
+      const matchedPresets = POPULAR_LOCATIONS.filter((loc) =>
+        loc.label.toLowerCase().includes(trimmed.toLowerCase())
+      ).map((loc) => ({
+        display_name: `${loc.label} (Campus Preset)`,
+        lat: loc.coordinates[1],
+        lon: loc.coordinates[0],
+        isPreset: true,
+      }));
+
+      // 2. Fetch live OpenStreetMap suggestions
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          query
+          trimmed
         )}&limit=5&countrycodes=in`
       );
       const data = await res.json();
+
+      const combined = [...matchedPresets, ...data];
       if (target === 'origin') {
-        setOriginResults(data);
+        setOriginResults(combined);
       } else {
-        setDestResults(data);
+        setDestResults(combined);
       }
     } catch {
       setStatus({ error: 'Location search failed. Please try again or select a preset.', success: '' });
@@ -95,6 +110,32 @@ function CreateRoutePool() {
       else setSearchingDest(false);
     }
   };
+
+  // --- Real-time typing debounce for Origin (No cascading renders) ---
+  useEffect(() => {
+    if (originQuery.trim().length < 3 || originQuery === origin.label) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      searchPlace(originQuery, 'origin');
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [originQuery, origin.label]);
+
+  // --- Real-time typing debounce for Destination (No cascading renders) ---
+  useEffect(() => {
+    if (destQuery.trim().length < 3 || destQuery === destination.label) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      searchPlace(destQuery, 'dest');
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [destQuery, destination.label]);
 
   // Browser Geolocation API ("Use My Current Location")
   const handleUseCurrentLocation = () => {
@@ -120,20 +161,22 @@ function CreateRoutePool() {
   };
 
   const handleSelectOrigin = (item) => {
+    const label = item.display_name.split(',')[0].replace(' (Campus Preset)', '');
     setOrigin({
-      label: item.display_name.split(',')[0],
+      label,
       coordinates: [parseFloat(item.lon), parseFloat(item.lat)],
     });
-    setOriginQuery(item.display_name.split(',')[0]);
+    setOriginQuery(label);
     setOriginResults([]);
   };
 
   const handleSelectDest = (item) => {
+    const label = item.display_name.split(',')[0].replace(' (Campus Preset)', '');
     setDestination({
-      label: item.display_name.split(',')[0],
+      label,
       coordinates: [parseFloat(item.lon), parseFloat(item.lat)],
     });
-    setDestQuery(item.display_name.split(',')[0]);
+    setDestQuery(label);
     setDestResults([]);
   };
 
@@ -242,44 +285,63 @@ function CreateRoutePool() {
                 <button
                   type="button"
                   onClick={handleUseCurrentLocation}
-                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded cursor-pointer"
+                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded cursor-pointer transition"
                 >
                   📍 Use Current Location
                 </button>
               </div>
 
-              <div className="flex gap-2">
-                <input
-                  required
-                  placeholder="Search city, junction, or landmark..."
-                  value={originQuery}
-                  onChange={(e) => setOriginQuery(e.target.value)}
-                  className="flex-1 border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => searchPlace(originQuery, 'origin')}
-                  disabled={searchingOrigin}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-md font-semibold cursor-pointer disabled:opacity-50"
-                >
-                  {searchingOrigin ? '...' : 'Search'}
-                </button>
-              </div>
-
-              {/* Search Suggestions Dropdown */}
-              {originResults.length > 0 && (
-                <div className="bg-white border border-slate-200 rounded-lg shadow-md max-h-40 overflow-y-auto divide-y divide-slate-100">
-                  {originResults.map((item, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => handleSelectOrigin(item)}
-                      className="p-2 text-xs text-slate-700 hover:bg-indigo-50 cursor-pointer"
-                    >
-                      {item.display_name}
-                    </div>
-                  ))}
+              <div className="relative">
+                <div className="flex gap-2">
+                  <input
+                    required
+                    placeholder="Type to search origin..."
+                    value={originQuery}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setOriginQuery(val);
+                      if (val.trim().length < 3) {
+                        setOriginResults([]);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        searchPlace(originQuery, 'origin');
+                      }
+                    }}
+                    className="flex-1 border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => searchPlace(originQuery, 'origin')}
+                    disabled={searchingOrigin}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-md font-semibold cursor-pointer disabled:opacity-50 transition"
+                  >
+                    {searchingOrigin ? '...' : 'Search'}
+                  </button>
                 </div>
-              )}
+
+                {/* Floating Suggestions Dropdown */}
+                {originResults.length > 0 && (
+                  <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto divide-y divide-slate-100">
+                    {originResults.map((item, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => handleSelectOrigin(item)}
+                        className="p-2.5 text-xs text-slate-700 hover:bg-indigo-50 cursor-pointer flex items-center justify-between"
+                      >
+                        <span className="truncate pr-2">{item.display_name}</span>
+                        {item.isPreset && (
+                          <span className="bg-indigo-100 text-indigo-700 text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0">
+                            Preset
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Selected badge */}
               <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
@@ -315,38 +377,57 @@ function CreateRoutePool() {
                 Destination (Ending Point)
               </span>
 
-              <div className="flex gap-2">
-                <input
-                  required
-                  placeholder="Search destination or campus..."
-                  value={destQuery}
-                  onChange={(e) => setDestQuery(e.target.value)}
-                  className="flex-1 border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => searchPlace(destQuery, 'dest')}
-                  disabled={searchingDest}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-md font-semibold cursor-pointer disabled:opacity-50"
-                >
-                  {searchingDest ? '...' : 'Search'}
-                </button>
-              </div>
-
-              {/* Search Suggestions Dropdown */}
-              {destResults.length > 0 && (
-                <div className="bg-white border border-slate-200 rounded-lg shadow-md max-h-40 overflow-y-auto divide-y divide-slate-100">
-                  {destResults.map((item, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => handleSelectDest(item)}
-                      className="p-2 text-xs text-slate-700 hover:bg-emerald-50 cursor-pointer"
-                    >
-                      {item.display_name}
-                    </div>
-                  ))}
+              <div className="relative">
+                <div className="flex gap-2">
+                  <input
+                    required
+                    placeholder="Type to search destination..."
+                    value={destQuery}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setDestQuery(val);
+                      if (val.trim().length < 3) {
+                        setDestResults([]);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        searchPlace(destQuery, 'dest');
+                      }
+                    }}
+                    className="flex-1 border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => searchPlace(destQuery, 'dest')}
+                    disabled={searchingDest}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-md font-semibold cursor-pointer disabled:opacity-50 transition"
+                  >
+                    {searchingDest ? '...' : 'Search'}
+                  </button>
                 </div>
-              )}
+
+                {/* Floating Suggestions Dropdown */}
+                {destResults.length > 0 && (
+                  <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto divide-y divide-slate-100">
+                    {destResults.map((item, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => handleSelectDest(item)}
+                        className="p-2.5 text-xs text-slate-700 hover:bg-emerald-50 cursor-pointer flex items-center justify-between"
+                      >
+                        <span className="truncate pr-2">{item.display_name}</span>
+                        {item.isPreset && (
+                          <span className="bg-emerald-100 text-emerald-700 text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0">
+                            Preset
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Selected badge */}
               <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">

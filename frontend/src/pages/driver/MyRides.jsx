@@ -15,8 +15,8 @@ function MyRides() {
       try {
         const { data } = await getMyDriverRides();
         if (!ignore) setRides(data.rides || []);
-      } catch {
-        if (!ignore) setStatus({ error: 'Failed to load rides', success: '' });
+      } catch (err) {
+        if (!ignore) setStatus({ error: err.response?.data?.message || err.message || 'Failed to load rides', success: '' });
       } finally {
         if (!ignore) setLoading(false);
       }

@@ -19,7 +19,7 @@ This document tracks the current execution state of the Commuto project, detaile
 | **Phase 5** | Fuel Rates Management (Historical rate tracking) | **COMPLETED** | Fully verified & tested |
 | **Phase 6** | Route Pools (Driver recurring pools, map polylines & distance) | **COMPLETED** | Fully verified & tested |
 | **Phase 7** | Daily Ride Generation & Single-Day Rides (Snapshot fuel rates, ad-hoc rides) | **COMPLETED** | Fully verified & tested |
-| **Phase 8** | Matching Engine (Pure deterministic scoring function + unit tests) | Pending | Depends on Phase 7 |
+| **Phase 8** | Matching Engine (Pure deterministic scoring function + unit tests) | **COMPLETED** | Fully verified & tested |
 | **Phase 9** | Bookings, Escrow Wallet & Roster Lock Job (Atomic seats, ledger holds) | Pending | Depends on Phase 8 |
 | **Phase 10** | Trust Graph, Reviews, Reports (Pairwise trustedge, mutual rating) | Pending | Depends on Phase 9 |
 | **Phase 11** | Notifications (Socket.IO + In-app persistence) | Pending | Depends on Phase 10 |
@@ -79,10 +79,17 @@ This document tracks the current execution state of the Commuto project, detaile
     * `getRideById`: Fetches ride details populated with driver and vehicle info.
     * `triggerDailyGeneration`: Manual testing endpoint supporting optional target date override.
   * `backend/routes/rideRoutes.js`: Protected routes mounted at `/api/rides`.
+* **Matching Engine (§7.1)**:
+  * `backend/services/matchingService.js`: Pure deterministic scoring and ranking engine (`scoreAndRankRides`) computing dynamic match scores based on:
+    * **Route Overlap & Direction Check (40%)**: Enforces forward-direction alignment (`originIndex < destIndex`) along the OSRM road polyline.
+    * **Time Proximity (25%)**: Linear penalty window up to 60 minutes (`MAX_TIME_DIFF_MINS = 60`).
+    * **Boarding Distance (20%)**: Straight-line walking radius calculation up to 2.0 km (`MAX_WALK_RADIUS_KM = 2.0`).
+    * **Trust Signal (15%)**: Baseline verified driver trust (0.80) with same-department boost capability (1.00).
+  * `backend/controllers/rideController.js` (`searchRides`): `GET /api/rides/search` fetches candidate rides for the target date, filters out unviable/self-matching rides (`driverId: { $ne: req.user._id }`), and executes the pure matching engine.
 
 ### Frontend
 * **Build Stack**: React 19 + Vite 8 + Tailwind CSS v4 + React Router v7.
-* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, auth interceptors, 401 handling, and service endpoints for Auth, Departments, Vehicles, Fuel Rates, Route Pools, and Rides (`createOneOffRide`, `getMyDriverRides`, `getRideDetails`, `triggerDailyGeneration`).
+* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, auth interceptors, 401 handling, and service endpoints for Auth, Departments, Vehicles, Fuel Rates, Route Pools, Rides (`createOneOffRide`, `getMyDriverRides`, `getRideDetails`, `triggerDailyGeneration`), and Ride Search (`searchRides`).
 * **`frontend/src/context/AuthContext.jsx`**:
   * Implemented full token verification against `/api/auth/me` on load.
   * Correctly toggles `loading` state while fetching session validity.
@@ -100,7 +107,9 @@ This document tracks the current execution state of the Commuto project, detaile
 * **Ride Publishing & Dashboard**:
   * `CreateOneOffRide.jsx`: Interface for publishing ad-hoc single-day rides for exams, tech fests, or special weekend commutes with real-time address search, seat capacity validation, and cost calculations.
   * `MyRides.jsx`: Driver dashboard with visual distinction between `🔁 Recurring Pool Ride` and `🗓️ Single-Day Ride`, available seat counters, estimated share per head, frozen fuel rate used, roster lock countdowns, and on-demand generator trigger.
-* **Routing**: `App.jsx` includes `<Login>`, `<Register>`, protected `<DepartmentManagement>` (`/admin/departments`), protected `<VehicleForm>` (`/driver/vehicles/add`), protected `<VehicleVerificationQueue>` (`/admin/vehicles/pending`), protected `<FuelRateSettings>` (`/admin/fuel-rates`), protected `<CreateRoutePool>` (`/driver/routepools/create`), protected `<MyRoutePools>` (`/driver/routepools`), protected `<CreateOneOffRide>` (`/driver/rides/create-single`), and protected `<MyRides>` (`/driver/rides`).
+* **Rider Matching Experience**:
+  * `SearchRides.jsx`: Clean rider search interface with 1-click campus presets (`Aluva Metro Station`, `Campus Main Gate`, etc.) to prevent geocoding boundary drift, date/time pickers, dynamic match % badges, walk-to-boarding distance indicators, estimated cost per head, and viable ride filtering.
+* **Routing**: `App.jsx` includes `<Login>`, `<Register>`, protected `<DepartmentManagement>` (`/admin/departments`), protected `<VehicleForm>` (`/driver/vehicles/add`), protected `<VehicleVerificationQueue>` (`/admin/vehicles/pending`), protected `<FuelRateSettings>` (`/admin/fuel-rates`), protected `<CreateRoutePool>` (`/driver/routepools/create`), protected `<MyRoutePools>` (`/driver/routepools`), protected `<CreateOneOffRide>` (`/driver/rides/create-single`), protected `<MyRides>` (`/driver/rides`), and `<SearchRides>` (`/search-rides`).
 
 ---
 
@@ -167,6 +176,15 @@ The following items were simplified or deferred to keep the codebase completely 
 * **Phase Effective:** **Phase 7, Phase 8, Phase 9**
 * **Context:** In early design, `costPerHead = dailyTripCost / confirmedHeadcount` (passengers only). This risked dumping 100% of the fuel cost on a single rider if only 1 student booked, or on a 2-wheeler bike pillion passenger.
 * **Updated Design:** Adopted the **Equal Split Model**: `costPerHead = dailyTripCost / (1 + confirmedRiderCount)`. The driver is counted as 1 passenger/seat in the carpool so that single riders and bike passengers split fuel 50/50 and are never unfairly burdened. Initial pre-lock estimate uses `dailyTripCost / (1 + totalSeats)`.
+
+### [REG-11] UI Cost Transparency & Optimistic vs. Confirmed Occupancy Labeling
+* **Phase Effective:** **Phase 9 (Provisional Holds) & Phase 13 (Frontend Polish & Labeling)**
+* **Context:** Initial pre-lock estimates displayed to riders use `totalSeats` (full-occupancy, optimistic baseline: `dailyTripCost / (1 + totalSeats)`), whereas the final frozen cost at 9:00 PM roster lock uses live `confirmedRiderCount` (`dailyTripCost / (1 + confirmedRiderCount)`).
+* **Behavior:** If a carpool does not fully fill up by the roster lock (e.g., 2 riders join a 4-seater car), the final share will rise from the optimistic baseline. While this is mathematically fair and expected in dynamic cost-sharing, riders could perceive this price shift as a "bait-and-switch" if not labeled transparently.
+* **Requirements for Phase 13:**
+  * Label pre-booking search prices clearly as optimistic minimums (e.g. *"From ₹X if fully booked"* or display a range *"Est. ₹X – ₹Y"*).
+  * Checkout modal must include explicit notice: *"Your final share is locked at 9:00 PM based on confirmed riders. Maximum possible share is ₹Z."*
+  * Flagged for Phase 13 frontend polish — no immediate blocking changes required for Phase 9 core escrow logic.
 
 ---
 

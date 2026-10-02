@@ -386,6 +386,10 @@ costPerHead   = dailyTripCost / (1 + confirmedRiderCount)
 
 Each `ride` stores two cost fields: `estimatedCostPerHead` (live, shown before lock) and `costPerHeadFinal` (frozen at `rosterLockAt`, authoritative).
 
+> [!NOTE]
+> **UI Cost Transparency & Optimistic Labeling (Phase 13):**  
+> Notice that the initial pre-lock `estimatedCostPerHead` uses `totalSeats` (full-occupancy, optimistic) whereas the final cost at `rosterLockAt` uses live `confirmedRiderCount`. That means if a car does not completely fill up by roster lock, a rider's final share will naturally rise from the optimistic baseline. While this is mathematically fair and expected in cost-sharing, the UI in Phase 13 must clearly label the figure (e.g., *"From ₹X if fully booked"* or *"Est. Share: ₹X – ₹Y"*) with a clear checkout notice so riders never perceive it as a bait-and-switch.
+
 ### 7.3 Roster Lock & Escrow
 
 **Roster lock** = a per-ride timestamp (e.g. 8 PM the evening before departure) that freezes the day's headcount and finalizes cost. It serves two purposes at once: (1) the moment the day's passenger list closes, and (2) the fairness cutoff deciding refund vs. forfeit on cancellation.

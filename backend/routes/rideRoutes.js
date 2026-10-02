@@ -4,7 +4,9 @@ import {
   getMyDriverRides,
   getRideById,
   triggerDailyGeneration,
+  searchRides
 } from '../controllers/rideController.js';
+
 import { protect } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
 
@@ -16,6 +18,9 @@ router.use(protect);
 router.post('/', requireRole('driver'), createOneOffRide);
 router.get('/my', requireRole('driver'), getMyDriverRides);
 router.post('/generate-daily', triggerDailyGeneration);
+
+// Rider Search Endpoint (Must be BEFORE /:id)
+router.get('/search', searchRides);
 
 // General ride details
 router.get('/:id', getRideById);
