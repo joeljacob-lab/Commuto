@@ -20,8 +20,16 @@ export const createBooking = async (req, res) => {
         const ride = await Ride.findById(rideId).session(session);
         if (!ride) throw new Error('Ride not found');
         if (ride.driverId === riderId) throw new Error('Drivers cannot book their own rides');
-        if (ride.status !== 'scheduled') throw new Error('Ride is not available for booking');
-        if (new Date() >= ride.rosterLockAt) throw new Error('Booking closed (roster locked)');
+        
+        // Matches Ride schema enums ('published' or 'booking')
+        if (!['published', 'booking'].includes(ride.status)) {
+            throw new Error('Ride is not available for booking');
+        }
+
+        const isLocked = ride.costLocked || (ride.rosterLockAt && new Date() >= ride.rosterLockAt);
+        if (isLocked) {
+            throw new Error('Booking closed (roster locked)');
+        }
 
         // 2. Check for duplicate booking
         const existingBooking = await Booking.findOne({ 
@@ -34,7 +42,10 @@ export const createBooking = async (req, res) => {
         // 3. Atomically reserve seat to prevent overbooking races
         const updatedRide = await Ride.findOneAndUpdate(
             { _id: rideId, availableSeats: { $gt: 0 } },
-            { $inc: { availableSeats: -1, confirmedRiderCount: 1 } },
+            { 
+                $inc: { availableSeats: -1, confirmedRiderCount: 1 },
+                $set: { status: 'booking' }
+            },
             { new: true, session }
         );
 
@@ -42,24 +53,35 @@ export const createBooking = async (req, res) => {
             throw new Error('No seats available or ride locked');
         }
 
-        // 4. Calculate provisional cost (optimistic based on full occupancy)
-        // [REG-11]: Final cost might be higher at lock time if car doesn't fill
-        const provisionalCost = Math.round(updatedRide.totalTripCost / (1 + updatedRide.totalSeats));
+        // If no more seats left, mark as full
+        if (updatedRide.availableSeats === 0) {
+            updatedRide.status = 'full';
+            await updatedRide.save({ session });
+        }
 
-        // 5. Create booking record
+        // 4. Use estimatedCostPerHead pre-calculated on the Ride document
+        const provisionalCost = updatedRide.estimatedCostPerHead || 20;
+
+        // 5. Boarding point fallback (required by Booking schema)
+        const boardingPoint = req.body?.boardingPoint || 
+                              (updatedRide.boardingPoints && updatedRide.boardingPoints[0]) || 
+                              updatedRide.origin;
+
+        // 6. Create booking record
         const booking = new Booking({
             rideId,
-            driverId: updatedRide.driverId,
             passengerId: riderId,
+            boardingPoint,
             status: 'confirmed',
             holdAmountProvisional: provisionalCost,
             holdStatus: 'held',
+            confirmedAt: new Date(),
             cutoffDeadline: updatedRide.rosterLockAt
         });
 
         await booking.save({ session });
 
-        // 6. Escrow Hold
+        // 7. Escrow Hold
         await holdFunds(riderId, booking._id, provisionalCost, session);
 
         await session.commitTransaction();
@@ -93,24 +115,27 @@ export const cancelBooking = async (req, res) => {
         const ride = await Ride.findById(booking.rideId).session(session);
         if (!ride) throw new Error('Ride not found');
 
-        const isAfterLock = new Date() >= ride.rosterLockAt;
+        const isAfterLock = ride.costLocked || (ride.rosterLockAt && new Date() >= ride.rosterLockAt);
 
         if (!isAfterLock) {
             // Pre-lock: Refund rider, free up the seat
             await releaseFunds(riderId, booking._id, booking.holdAmountProvisional, session);
             
             await Ride.findByIdAndUpdate(ride._id, {
-                $inc: { availableSeats: 1, confirmedRiderCount: -1 }
+                $inc: { availableSeats: 1, confirmedRiderCount: -1 },
+                $set: { status: 'booking' }
             }, { session });
 
             booking.status = 'cancelled';
             booking.holdStatus = 'released';
+            booking.cancelledAt = new Date();
         } else {
             // Post-lock: Forfeit hold to driver, seat is burned (not returned to pool)
             await forfeitFunds(riderId, ride.driverId, booking._id, booking.holdAmountProvisional, session);
             
             booking.status = 'cancelled';
             booking.holdStatus = 'forfeited';
+            booking.cancelledAt = new Date();
         }
 
         await booking.save({ session });
