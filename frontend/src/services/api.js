@@ -71,4 +71,9 @@ export const searchRides = (params) => {
   return api.get(`/rides/search?${queryString}`);
 };
 
+
+// --- Wallet endpoints ---
+export const getMyWallet = () => api.get('/wallet/balance');
+export const topUpWallet = (data) => api.post('/wallet/topup', data);
+
 export default api;

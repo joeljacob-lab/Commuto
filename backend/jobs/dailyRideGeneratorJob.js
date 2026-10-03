@@ -1,3 +1,4 @@
+import cron from 'node-cron';
 import RoutePool from '../models/RoutePool.js';
 import Ride from '../models/Ride.js';
 import FuelRate from '../models/FuelRate.js';
@@ -122,36 +123,22 @@ export const generateDailyRides = async (targetDate) => {
   };
 };
 
+
+
 /**
- * Background Scheduler: Runs automatically at 5:00 PM every evening
+ * Background Scheduler: Runs automatically at 12:00 AM (Midnight) every night
  * to generate the next day's rides without any human clicks.
+ * Using node-cron for reliability.
  */
 export const startRideGenerationScheduler = () => {
-  const scheduleNext5PM = () => {
-    const now = new Date();
-    const nextRun = new Date();
-    nextRun.setHours(17, 0, 0, 0); // 5:00 PM
-
-    // If it's already past 5:00 PM today, schedule for 5:00 PM tomorrow
-    if (now >= nextRun) {
-      nextRun.setDate(nextRun.getDate() + 1);
+  // '0 0 * * *' means exactly at 12:00 AM every day
+  cron.schedule('0 0 * * *', async () => {
+    console.log('⏰ [Midnight CRON] Automatically generating rides for tomorrow...');
+    try {
+      const result = await generateDailyRides();
+      console.log(`✅ [Midnight CRON] Generated ${result.generatedCount} ride(s) for tomorrow (${result.targetDate}).`);
+    } catch (err) {
+      console.error('❌ Error during midnight ride generation:', err.message);
     }
-
-    const delayMs = nextRun.getTime() - now.getTime();
-    console.log(`⏰ Automated 5:00 PM Ride Generator scheduled for: ${nextRun.toLocaleString()}`);
-
-    setTimeout(async () => {
-      try {
-        console.log('⏰ [5:00 PM Job] Automatically generating tomorrow\'s rides...');
-        const result = await generateDailyRides();
-        console.log(`✅ [5:00 PM Job] Generated ${result.generatedCount} ride(s) for tomorrow (${result.targetDate}).`);
-      } catch (err) {
-        console.error('❌ Error during 5:00 PM ride generation:', err.message);
-      }
-      // Re-schedule for the next day
-      scheduleNext5PM();
-    }, delayMs);
-  };
-
-  scheduleNext5PM();
+  });
 };

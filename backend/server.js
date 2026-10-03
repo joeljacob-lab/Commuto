@@ -13,12 +13,24 @@ import fuelRateRoutes from './routes/fuelRateRoutes.js';
 import routePoolRoutes from './routes/routePoolRoutes.js';
 import rideRoutes from './routes/rideRoutes.js';
 import { startRideGenerationScheduler } from './jobs/dailyRideGeneratorJob.js';
+import walletRoutes from './routes/walletRoutes.js';
+import bookingRoutes from './routes/bookingRoutes.js';
+import { startRosterLockJob } from './jobs/rosterLockJob.js';
+
 
 // Load environment variables
 dotenv.config();
 
-// Connect to Database
-connectDB();
+// Database connection
+connectDB().then(() => {
+  console.log('✅ Database connected. Starting background jobs...');
+  
+  // Start the midnight ride generator
+  startRideGenerationScheduler();
+  
+  // Start the 9 PM roster lock
+  startRosterLockJob();
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -93,6 +105,8 @@ app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/fuelrates', fuelRateRoutes);
 app.use('/api/routepools', routePoolRoutes);
 app.use('/api/rides', rideRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 // Error handling middleware
 app.use(notFound);
