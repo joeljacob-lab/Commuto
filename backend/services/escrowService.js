@@ -105,3 +105,29 @@ export const processLockDelta = async (userId, bookingId, additionalAmountRequir
 
     return true;
 };
+
+
+
+/**
+ * Credits held escrow funds to the driver upon successful trip completion.
+ * Appends a 'payout' record to the WalletLedger.
+ */
+export const payoutTripToDriver = async (driverId, bookingId, amount, session) => {
+    if (amount <= 0) return true;
+
+    const driver = await User.findById(driverId).session(session);
+    if (!driver) throw new Error('Driver not found');
+
+    driver.walletBalance += amount;
+    await driver.save({ session });
+
+    await new WalletLedger({
+        userId: driverId,
+        bookingId,
+        type: 'payout',
+        amount,
+        balanceAfter: driver.walletBalance
+    }).save({ session });
+
+    return true;
+};

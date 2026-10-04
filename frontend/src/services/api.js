@@ -76,4 +76,23 @@ export const searchRides = (params) => {
 export const getMyWallet = () => api.get('/wallet/balance');
 export const topUpWallet = (data) => api.post('/wallet/topup', data);
 
+
+// --- Rides Actions ---
+export const completeRide = (id) => api.put(`/rides/${id}/complete`);
+
+// --- Booking Endpoints ---
+export const createBooking = (rideId, data) => api.post(`/bookings/ride/${rideId}`, data);
+export const cancelBooking = (id) => api.put(`/bookings/${id}/cancel`);
+export const getMyBookings = () => api.get('/bookings/my-bookings');
+
+// --- Phase 10: Reviews ---
+export const createReview = (data) => api.post('/reviews', data);
+export const getUserReviews = (userId) => api.get(`/reviews/user/${userId}`);
+
+// --- Phase 10: Reports ---
+export const createReport = (data) => api.post('/reports', data);
+export const getMyReports = () => api.get('/reports/my');
+export const getAllReports = (params) => api.get('/reports', { params });
+export const updateReportStatus = (id, status) => api.put(`/reports/${id}/status`, { status });
+
 export default api;

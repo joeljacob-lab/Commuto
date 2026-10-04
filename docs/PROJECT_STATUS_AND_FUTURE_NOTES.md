@@ -20,15 +20,15 @@ This document tracks the current execution state of the Commuto project, detaile
 | **Phase 6** | Route Pools (Driver recurring pools, map polylines & distance) | **COMPLETED** | Fully verified & tested |
 | **Phase 7** | Daily Ride Generation & Single-Day Rides (Snapshot fuel rates, ad-hoc rides) | **COMPLETED** | Fully verified & tested |
 | **Phase 8** | Matching Engine (Pure deterministic scoring function + unit tests) | **COMPLETED** | Fully verified & tested |
-| **Phase 9** | Bookings, Escrow Wallet & Roster Lock Job (Atomic seats, ledger holds) | Pending | Depends on Phase 8 |
-| **Phase 10** | Trust Graph, Reviews, Reports (Pairwise trustedge, mutual rating) | Pending | Depends on Phase 9 |
+| **Phase 9** | Bookings, Escrow Wallet & Roster Lock Job (Atomic seats, ledger holds) | **COMPLETED** | Fully verified & tested |
+| **Phase 10** | Trust Graph, Reviews, Reports (Pairwise trustedge, mutual rating) | **COMPLETED** | Fully verified & tested |
 | **Phase 11** | Notifications (Socket.IO + In-app persistence) | Pending | Depends on Phase 10 |
 | **Phase 12** | Admin Dashboard & Stats (Platform counts, report handling) | Pending | Depends on Phase 11 |
 | **Phase 13** | Frontend Polish & Full End-to-End Verification Flow | Pending | Final Phase |
 
 ---
 
-## 2. Current Implementation Status (End of Phase 7)
+## 2. Current Implementation Status (End of Phase 10)
 
 ### Backend
 * **Database & Config**: Mongoose models fully initialized using ESM. Natural keys correctly implemented for `User` (`collegeId`) and `Vehicle` (`registrationNumber`). Environment fully configured.
@@ -36,8 +36,10 @@ This document tracks the current execution state of the Commuto project, detaile
   * Express app with CORS (`credentials: true`, pointing to `CLIENT_URL`), JSON parsing (`10mb` limit), and urlencoded body parsing.
   * Root health routes implemented: `GET /` and `GET /api/health`.
   * Error middleware wired: `notFound` (404) and `errorHandler`.
-  * API mounted: `app.use('/api/auth', authRoutes)`, `app.use('/api/departments', departmentRoutes)`, `app.use('/api/vehicles', vehicleRoutes)`, `app.use('/api/fuelrates', fuelRateRoutes)`, `app.use('/api/routepools', routePoolRoutes)`, `app.use('/api/rides', rideRoutes)`.
-  * Background cron initialized: `startRideGenerationScheduler()` automatically runs daily at 5:00 PM to generate tomorrow's recurring rides.
+  * API mounted: `app.use('/api/auth', authRoutes)`, `app.use('/api/departments', departmentRoutes)`, `app.use('/api/vehicles', vehicleRoutes)`, `app.use('/api/fuelrates', fuelRateRoutes)`, `app.use('/api/routepools', routePoolRoutes)`, `app.use('/api/rides', rideRoutes)`, `app.use('/api/wallet', walletRoutes)`, `app.use('/api/bookings', bookingRoutes)`, `app.use('/api/reviews', reviewRoutes)`, `app.use('/api/reports', reportRoutes)`.
+  * Background cron jobs initialized after DB connection:
+    * `startRideGenerationScheduler()`: runs automatically daily at 12:00 AM Midnight via `node-cron` to generate future recurring rides.
+    * `startRosterLockJob()`: runs automatically daily at 9:00 PM (21:00) via `node-cron` to freeze headcount and finalize Equal Split pricing.
 * **Auth & RBAC**:
   * Controllers: `registerUser` (with unique checks and domain constraints), `loginUser`, `getMe`.
   * Middleware: `protect` (JWT verification) and `requireRole` (RBAC access checks) working correctly.
@@ -86,10 +88,55 @@ This document tracks the current execution state of the Commuto project, detaile
     * **Boarding Distance (20%)**: Straight-line walking radius calculation up to 2.0 km (`MAX_WALK_RADIUS_KM = 2.0`).
     * **Trust Signal (15%)**: Baseline verified driver trust (0.80) with same-department boost capability (1.00).
   * `backend/controllers/rideController.js` (`searchRides`): `GET /api/rides/search` fetches candidate rides for the target date, filters out unviable/self-matching rides (`driverId: { $ne: req.user._id }`), and executes the pure matching engine.
+* **Escrow Wallet Subsystem & Ledger Service**:
+  * `backend/services/escrowService.js`: Transaction-aware core financial engine:
+    * `holdFunds`: Deducts provisional share from spendable `walletBalance` and inserts append-only `WalletLedger` record (`type: 'hold'`).
+    * `releaseFunds`: Restores held funds on pre-lock cancellation with ledger record (`type: 'release'`).
+    * `forfeitFunds`: Transfers held funds on post-lock cancellation / no-show by crediting driver's spendable balance (`type: 'payout'`) and logging rider forfeiture (`type: 'forfeit'`).
+    * `processLockDelta`: Automatically settles the difference at roster lock when actual headcount yields a higher final share than optimistic capacity.
+  * `backend/controllers/walletController.js`:
+    * `getMyWallet`: Fetches live `walletBalance` and transaction history sorted latest first.
+    * `topUpWallet`: Academic mock payment gateway (`POST /api/wallet/topup`) crediting balance and writing ledger record (`type: 'topup'`).
+  * `backend/routes/walletRoutes.js`: Authenticated routes supporting `GET /api/wallet/balance` (with `/me` alias) and `POST /api/wallet/topup`.
+* **Booking Lifecycle & Atomic Seat Reservation**:
+  * `backend/controllers/bookingController.js`:
+    * `createBooking`: Uses atomic `findOneAndUpdate` with `{ availableSeats: { $gt: 0 } }` to eliminate overbooking race conditions; transitions ride status to `'booking'` or `'full'`; automatically sets fallback `boardingPoint` from ride origin if not passed; records `holdAmountProvisional` and locks funds via `escrowService`.
+    * `cancelBooking`: Branches based on `rosterLockAt` and `costLocked`. Pre-lock: 100% refund via `releaseFunds` and frees the seat (`availableSeats + 1`). Post-lock: forfeits hold to driver via `forfeitFunds` and burns the seat. Prevents duplicate cancellations.
+    * `getMyBookings`: Lists user's bookings populated with ride and vehicle details.
+  * `backend/routes/bookingRoutes.js`: Authenticated routes mounted at `/api/bookings` (`POST /ride/:id`, `PUT /:id/cancel`, `GET /my-bookings`).
+* **Roster Lock Engine (§7.3)**:
+  * `backend/jobs/rosterLockJob.js`:
+    * Runs daily at 21:00 (9:00 PM) via `node-cron`.
+    * Queries open rides past lock cutoff (`status: { $in: ['published', 'booking', 'full'] }`, `costLocked: { $ne: true }`, `rosterLockAt: { $lte: now }`).
+    * Queries real confirmed database bookings (`bookings.length`) to compute true Equal Split headcount: `costPerHeadFinal = totalTripCost / (1 + confirmedRiderCount)`.
+    * Freezes cost (`costLocked: true`, `costPerHeadFinal`), processes escrow deltas for confirmed bookings, and updates `holdAmountFinal`.
+* **Ride Completion & Driver Escrow Payout**:
+  * `backend/services/escrowService.js`: `payoutTripToDriver(driverId, bookingId, amount, session)` credits held funds to driver spendable `walletBalance` and inserts `WalletLedger` record (`type: 'payout'`).
+  * `backend/controllers/rideController.js`: `completeRide` (`PUT /api/rides/:id/complete`) driver endpoint that transitions ride and confirmed bookings to `'completed'`, releases escrow payout to driver, and triggers trust graph updates.
+  * `backend/routes/rideRoutes.js`: Driver-protected route mounted at `PUT /api/rides/:id/complete`.
+* **Pairwise Trust Graph Engine (`trustedges`)**:
+  * `backend/services/trustService.js`:
+    * Enforces canonical `userA < userB` lexical ordering to guarantee exactly one document per student pair.
+    * `recordMutualRide`: Upserts pairwise edge, compares `deptId` to cache `sharedDepartment`, increments `mutualRideCount`, timestamps `lastRideAt`.
+    * `recordCompletedRideTrust`: Batch-records edges between driver and confirmed passengers upon trip completion.
+    * `recordReportFlag`: Automatically increments `reportFlags` on pairwise edge upon safety report submission.
+    * `getPairTrust`: Helper to query pairwise relationship for search matching / profiles.
+* **Mutual Post-Ride Reviews & Dynamic Rating Aggregation**:
+  * `backend/controllers/reviewController.js`:
+    * `createReview` (`POST /api/reviews`): Validates completed shared ride participation (driver $\leftrightarrow$ passenger or passenger $\leftrightarrow$ passenger); enforces compound unique constraint `{ rideId: 1, fromUserId: 1, toUserId: 1 }` to prevent duplicate reviews.
+    * `getUserReviews` (`GET /api/reviews/user/:userId`): Computes live rating dynamically on-demand using MongoDB `$avg` aggregation (no stale static user field per Schema v2).
+  * `backend/routes/reviewRoutes.js`: Authenticated review endpoints mounted at `/api/reviews`.
+* **Safety Reports & Moderation Queue**:
+  * `backend/controllers/reportController.js`:
+    * `createReport` (`POST /api/reports`): Free-form description text per `[REG-08]`, links optional ride, auto-increments `reportFlags` on pairwise `TrustEdge`.
+    * `getMyReports` (`GET /api/reports/my`): Lists student's submitted complaints.
+    * `getAllReports` (`GET /api/reports`) & `updateReportStatus` (`PUT /api/reports/:id/status`): Admin moderation queue (`open` $\rightarrow$ `investigating` $\rightarrow$ `resolved` $\rightarrow$ `dismissed`).
+  * `backend/routes/reportRoutes.js`: Authenticated student & admin routes mounted at `/api/reports`.
 
 ### Frontend
 * **Build Stack**: React 19 + Vite 8 + Tailwind CSS v4 + React Router v7.
-* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, auth interceptors, 401 handling, and service endpoints for Auth, Departments, Vehicles, Fuel Rates, Route Pools, Rides (`createOneOffRide`, `getMyDriverRides`, `getRideDetails`, `triggerDailyGeneration`), and Ride Search (`searchRides`).
+* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, auth interceptors, 401 handling, and service endpoints for Auth, Departments, Vehicles, Fuel Rates, Route Pools, Rides (`createOneOffRide`, `getMyDriverRides`, `getRideDetails`, `triggerDailyGeneration`, `completeRide`), Ride Search (`searchRides`), Wallet (`getMyWallet`, `topUpWallet`), Bookings (`createBooking`, `cancelBooking`, `getMyBookings`), Reviews (`createReview`, `getUserReviews`), and Reports (`createReport`, `getMyReports`, `getAllReports`, `updateReportStatus`).
+* **`frontend/src/pages/driver/MyRides.jsx`**: Integrated **"🏁 Complete Ride & Get Payout"** button, status badge, and reactive refresh trigger.
 * **`frontend/src/context/AuthContext.jsx`**:
   * Implemented full token verification against `/api/auth/me` on load.
   * Correctly toggles `loading` state while fetching session validity.
@@ -131,10 +178,10 @@ The following items were simplified or deferred to keep the codebase completely 
 
 ### [REG-04] `server.js` — API Route Mounts
 * **Phase to Reintroduce:** **Phases 9 through 12**
-* **Context:** Root, `/api/auth`, `/api/departments`, `/api/vehicles`, `/api/fuelrates`, `/api/routepools`, and `/api/rides` endpoints are actively mounted.
-* **What to mount sequentially:**
-  * Phase 9: `app.use('/api/bookings', bookingRoutes)` & `app.use('/api/wallet', walletRoutes)`
-  * Phase 10: `app.use('/api/reviews', reviewRoutes)` & `app.use('/api/reports', reportRoutes)`
+* **Context:** Root, `/api/auth`, `/api/departments`, `/api/vehicles`, `/api/fuelrates`, `/api/routepools`, `/api/rides`, `/api/wallet`, `/api/bookings`, `/api/reviews`, and `/api/reports` endpoints are actively mounted.
+* **What to mount sequentially in remaining phases:**
+  * Phase 9: `app.use('/api/bookings', bookingRoutes)` & `app.use('/api/wallet', walletRoutes)` (**MOUNTED & VERIFIED**)
+  * Phase 10: `app.use('/api/reviews', reviewRoutes)` & `app.use('/api/reports', reportRoutes)` (**MOUNTED & VERIFIED**)
   * Phase 11: `app.use('/api/notifications', notificationRoutes)`
   * Phase 12: `app.use('/api/admin', adminRoutes)`
 
@@ -163,9 +210,9 @@ The following items were simplified or deferred to keep the codebase completely 
 * **Updated Design:** `Department` uses standard auto-generated `ObjectId` as PK, and `deptCode` is completely removed. In `User.js`, `deptId` is `{ type: Schema.Types.ObjectId, ref: 'Department' }`. Only `User` (`collegeId`) and `Vehicle` (`registrationNumber`) use natural keys.
 
 ### [REG-08] `Report` Model — `reason` Field Removal
-* **Phase Effective:** **Phase 1 & Phase 10**
+* **Status:** **RESOLVED IN PHASE 10**
 * **Context:** Previously, `Report` had an enum `reason` field (`unsafe_driving`, `no_show`, etc.).
-* **Updated Design:** The `reason` field has been removed in favor of free-form `description` text. Controller and frontend report submissions in Phase 10 will send complaint context via `description` without enum constraints.
+* **Updated Design:** The `reason` field has been removed in favor of free-form `description` text. Controller and frontend report submissions in Phase 10 send complaint context via `description` without enum constraints. Submitting a report automatically increments `reportFlags` on the pairwise `TrustEdge`.
 
 ### [REG-09] Module System Standardization — ES Modules (ESM) Only
 * **Phase Effective:** **Phase 1 Onwards**
@@ -184,7 +231,26 @@ The following items were simplified or deferred to keep the codebase completely 
 * **Requirements for Phase 13:**
   * Label pre-booking search prices clearly as optimistic minimums (e.g. *"From ₹X if fully booked"* or display a range *"Est. ₹X – ₹Y"*).
   * Checkout modal must include explicit notice: *"Your final share is locked at 9:00 PM based on confirmed riders. Maximum possible share is ₹Z."*
-  * Flagged for Phase 13 frontend polish — no immediate blocking changes required for Phase 9 core escrow logic.
+### [REG-12] `Booking` Compound Index & Cancellation Re-Booking
+* **Phase Effective:** **Phase 9 & Schema v2 Maintenance**
+* **Context:** In early design, `Booking.js` defined a unique compound index: `bookingSchema.index({ rideId: 1, passengerId: 1 }, { unique: true })`.
+* **Behavior:** When a student books and later cancels a ride, the document remains in the collection with `status: 'cancelled'`. A strict unique index prevents that student from ever re-booking that ride later in the day, throwing a MongoDB duplicate key error (`E11000`).
+* **Recommended Schema Update:** Convert to a partial unique index:
+  ```javascript
+  bookingSchema.index(
+    { rideId: 1, passengerId: 1 },
+    {
+      unique: true,
+      partialFilterExpression: { status: { $in: ['requested', 'confirmed'] } }
+    }
+  );
+  ```
+  This guarantees that active bookings remain strictly unique while allowing riders who previously cancelled to re-join if seats remain open.
+
+### [REG-13] Ride Generation Schedule Standardization (12:00 AM Midnight)
+* **Phase Effective:** **Phase 7 & Phase 9**
+* **Context:** Early documentation drafts intermittently referenced a 5:00 PM ride generation time.
+* **Standardized Design:** Standardized `dailyRideGeneratorJob.js` on **12:00 AM Midnight (`0 0 * * *`)** using `node-cron`. Running at midnight provides a clean 21-hour booking window (from 12:00 AM to 9:00 PM roster lock) and supports future rolling-date multi-day generation windows without tight same-evening cutoffs.
 
 ---
 

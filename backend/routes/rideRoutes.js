@@ -4,7 +4,8 @@ import {
   getMyDriverRides,
   getRideById,
   triggerDailyGeneration,
-  searchRides
+  searchRides,
+  completeRide
 } from '../controllers/rideController.js';
 
 import { protect } from '../middleware/authMiddleware.js';
@@ -24,5 +25,7 @@ router.get('/search', searchRides);
 
 // General ride details
 router.get('/:id', getRideById);
+
+router.put('/:id/complete', requireRole('driver'), completeRide);
 
 export default router;

@@ -112,31 +112,45 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ---
 
-## Phase 9 — Bookings, Escrow & Roster Lock
+## Phase 9 — Bookings, Escrow & Roster Lock (COMPLETED)
 
-**The most logic-heavy phase — build in this sub-order, verifying each step:**
+**Build:**
+1. `services/escrowService.js`: Transaction-aware core financial service managing append-only `walletledgers`:
+   - `holdFunds`: locks provisional share from spendable `walletBalance` (`type: 'hold'`).
+   - `releaseFunds`: 100% refund for pre-lock cancellation (`type: 'release'`).
+   - `forfeitFunds`: transfers held funds to driver on late cancellation (`type: 'payout'` for driver, `type: 'forfeit'` for rider).
+   - `processLockDelta`: automated escrow adjustment at roster lock when final occupancy is lower than full vehicle capacity.
+2. `controllers/walletController.js` + `routes/walletRoutes.js`: Mock top-up gateway (`POST /api/wallet/topup`) and wallet inspection (`GET /api/wallet/balance` with `/me` alias).
+3. `controllers/bookingController.js` + `routes/bookingRoutes.js`:
+   - Atomic seat reservation via `findOneAndUpdate({ _id: rideId, availableSeats: { $gt: 0 } }, ...)` with status transition to `'booking'`/`'full'`.
+   - Provisional hold computation based on optimistic full-occupancy baseline.
+   - Dual-branch cancellation (`PUT /api/bookings/:id/cancel`): pre-lock releases funds and restores available seats; post-lock forfeits hold to driver and burns seat.
+   - Booking history endpoint (`GET /api/bookings/my-bookings`).
+4. `jobs/rosterLockJob.js`: 9:00 PM automated cron job (`0 21 * * *`) counting live confirmed bookings (`bookings.length`), computing true Equal Split (`costPerHeadFinal = totalTripCost / (1 + confirmedRiderCount)`), freezing costs (`costLocked: true`), and processing escrow deltas.
+5. `jobs/dailyRideGeneratorJob.js`: Standardized on 12:00 AM Midnight (`0 0 * * *`) using `node-cron`.
 
-1. `bookingController.js` — `POST /bookings`: check `walletBalance ≥ estimatedCostPerHead`, create booking with `holdAmountProvisional` held, write a `walletledger` entry (`type: 'hold'`), decrement `availableSeats` **atomically** (`findOneAndUpdate` with a seat-count guard to prevent a race on the last seat).
-2. Driver accept/reject endpoints (`PUT /bookings/:id/accept|reject`).
-3. `services/escrowService.js` — the release/forfeit logic, called from both the cancellation endpoint and the roster lock job.
-4. `services/costEngineService.js` — implements the §7.2 formula, called by the roster lock job.
-5. `jobs/rosterLockJob.js` — at `rosterLockAt`: count confirmed bookings, call `costEngineService` for `costPerHeadFinal`, set `holdAmountFinal` per booking (refund/top-up the delta via `escrowService` + `walletledger`), flip `costLocked`.
-6. Cancellation endpoint (`PUT /bookings/:id/cancel`) — branches on whether `now < cutoffDeadline`: before → release + trigger recalculation for remaining riders; after → forfeit via `escrowService`.
-7. Ride completion endpoint — releases all held funds to the driver's `walletBalance`, writes `walletledger` (`type: 'release'`), flips ride `status` to `completed`.
-8. `walletController.js` — top-up endpoint, ledger history endpoint.
-
-**Verify (build a manual test scenario):** create a ride with 3 riders, simulate one cancelling before lock (confirm the other two's `estimatedCostPerHead` rises) and one no-showing after lock (confirm their hold is forfeited and appears in the driver's ledger as a `forfeit` entry, not a `release`).
+**Verify:**
+- **Test Suite 1 (Booking Integrity & Race Conditions):** Driver self-booking blocked (`400 Bad Request`); 0-seat overbooking blocked via atomic `$gt: 0` guard; double booking rejected; insufficient wallet balance rejected.
+- **Test Suite 2 (Cancellation & Escrow Movement):** Pre-lock cancellation restores full balance and frees seat; post-lock cancellation transfers funds to driver, keeps rider balance deducted, and burns seat; double cancellation rejected (`400 Bad Request`).
+- **Test Suite 3 (Roster Lock & Dynamic Pricing Delta):** Partially filled car (1 confirmed rider in 4-seater car with ₹100 trip cost) verified: provisional ₹20 held upon booking; at roster lock, final cost computed as $100 / (1 + 1) = \text{₹50}$; escrow delta of ₹30 successfully deducted from rider's wallet balance ($500 \rightarrow 470$).
 
 ---
 
-## Phase 10 — Trust Graph, Reviews, Reports
+## Phase 10 — Trust Graph, Reviews, Reports (COMPLETED)
 
 **Build:**
-- `services/trustService.js` — on ride completion, upsert the `trustedges` document for each rider-driver pair (increment `mutualRideCount`, set `sharedDepartment` by comparing `deptId`).
-- `reviewController.js` + routes — post-ride mutual rating; enforce the compound-unique constraint (one review per direction per ride).
-- `reportController.js` + routes — submit report, admin list/update status.
+1. `services/escrowService.js` + `controllers/rideController.js`: Added `payoutTripToDriver` and `completeRide` (`PUT /api/rides/:id/complete`) to finalize bookings, mark ride `'completed'`, and transfer held escrow funds to driver's spendable `walletBalance` (`type: 'payout'`).
+2. `services/trustService.js`: Canonical pairwise graph service enforcing `userA < userB` lexical order convention. Implements `recordMutualRide` (increments `mutualRideCount`, checks `deptId` for `sharedDepartment`, updates `lastRideAt`), `recordCompletedRideTrust`, and `recordReportFlag`.
+3. `controllers/reviewController.js` + `routes/reviewRoutes.js`: Post-ride mutual rating (`POST /api/reviews`) enforcing completed shared ride participation and compound unique index `{ rideId: 1, fromUserId: 1, toUserId: 1 }`. Implements on-demand dynamic rating aggregation (`GET /api/reviews/user/:userId`) via MongoDB `$avg`.
+4. `controllers/reportController.js` + `routes/reportRoutes.js`: Safety complaint submission (`POST /api/reports`) with free-form description (`[REG-08]`), automatic pairwise trust edge flagging (`reportFlags + 1`), user report history (`GET /api/reports/my`), and admin moderation triage queue (`GET /api/reports`, `PUT /api/reports/:id/status`).
+5. Frontend integration: API service methods wired in `frontend/src/services/api.js`; driver **"🏁 Complete Ride & Get Payout"** button, status badge, and reactive refresh trigger integrated in `MyRides.jsx`.
 
-**Verify:** two users sharing a completed ride produce exactly one `trustedges` document (not two, one per direction) with `mutualRideCount = 1`; submitting a second review for the same ride/direction is rejected by the unique index.
+**Verify:**
+- **Test 10.1 (Ride Completion & Escrow Payout):** Verified ride and confirmed booking status transition to `'completed'`; driver spendable `walletBalance` credited with locked fare via append-only `WalletLedger` (`type: 'payout'`).
+- **Test 10.2 (Pairwise Trust Graph Upsert):** Verified exactly one canonical edge document created in `trustedges` with alphabetically sorted roll numbers (`userA < userB`), `mutualRideCount = 1`, and `sharedDepartment = true`.
+- **Test 10.3 (Review Submission & Dynamic Rating):** Verified 5-star review submission; verified dynamic rating aggregation returning live average (5.0) and review count without static model fields.
+- **Test 10.4 (Duplicate Review Guard):** Submitting a second review for the same ride and user pair rejected with `400 Bad Request` via compound unique constraint.
+- **Test 10.5 (Safety Report & Trust Flagging):** Submitted misconduct complaint; verified `Report` document created with `status: 'open'` and pairwise `TrustEdge` automatically flagged with `reportFlags: 1`.
 
 ---
 

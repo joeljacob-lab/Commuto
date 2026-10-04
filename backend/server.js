@@ -16,7 +16,8 @@ import { startRideGenerationScheduler } from './jobs/dailyRideGeneratorJob.js';
 import walletRoutes from './routes/walletRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import { startRosterLockJob } from './jobs/rosterLockJob.js';
-
+import reviewRoutes from './routes/reviewRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -107,6 +108,8 @@ app.use('/api/routepools', routePoolRoutes);
 app.use('/api/rides', rideRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Error handling middleware
 app.use(notFound);

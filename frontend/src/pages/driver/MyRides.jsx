@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getMyDriverRides, triggerDailyGeneration } from '../../services/api';
+import { getMyDriverRides, triggerDailyGeneration, completeRide } from '../../services/api';
 
 function MyRides() {
   const [rides, setRides] = useState([]);
@@ -41,6 +41,22 @@ function MyRides() {
       });
     } finally {
       setGenerating(false);
+    }
+  };
+
+    const handleCompleteRide = async (rideId) => {
+    if (!window.confirm('Mark this trip as completed? This will release the escrow payout to your wallet and update the trust graph.')) {
+      return;
+    }
+    try {
+      const res = await completeRide(rideId);
+      setStatus({ 
+        error: '', 
+        success: `Trip completed! ₹${res.data.data.totalPayout} released to your wallet for ${res.data.data.completedRiders} passenger(s).` 
+      });
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (err) {
+      setStatus({ error: err.response?.data?.message || 'Failed to complete ride', success: '' });
     }
   };
 
@@ -143,6 +159,25 @@ function MyRides() {
                     <span>{ride.origin.label}</span>
                     <span className="text-slate-400">→</span>
                     <span>{ride.destination.label}</span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                    <span className="text-[11px] text-slate-400">
+                      Roster Locks At: {new Date(ride.rosterLockAt).toLocaleString()}
+                    </span>
+
+                    {ride.status === 'completed' ? (
+                      <span className="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2.5 py-1 rounded-full">
+                        ✅ Completed
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleCompleteRide(ride._id)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        🏁 Complete Ride & Get Payout
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 pt-1">

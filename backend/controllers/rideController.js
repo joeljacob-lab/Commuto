@@ -1,10 +1,14 @@
 import Ride from '../models/Ride.js';
 import Vehicle from '../models/Vehicle.js';
 import FuelRate from '../models/FuelRate.js';
+import mongoose from 'mongoose';
 import normalizeRegNo from '../utils/normalizeRegNo.js';
 import { calculateRoute } from '../services/routeService.js';
 import { generateDailyRides, calculateRosterLockTime } from '../jobs/dailyRideGeneratorJob.js';
 import { scoreAndRankRides } from '../services/matchingService.js';
+import Booking from '../models/Booking.js';
+import { payoutTripToDriver } from '../services/escrowService.js';
+import { recordCompletedRideTrust } from '../services/trustService.js';
 
 // @desc    Publish a One-Off / Single-Day Ride (Ad-hoc trip)
 // @route   POST /api/rides
@@ -199,6 +203,90 @@ export const searchRides = async (req, res, next) => {
       rides: rankedRides,
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+
+
+/**
+ * @desc    Mark ride as completed & release escrow payout to driver
+ * @route   PUT /api/rides/:id/complete
+ * @access  Private (Driver only)
+ */
+export const completeRide = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const rideId = req.params.id;
+    const driverId = req.user._id;
+
+    // 1. Fetch and validate ride
+    const ride = await Ride.findById(rideId).session(session);
+    if (!ride) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: 'Ride not found' });
+    }
+
+    if (ride.driverId !== driverId) {
+      await session.abortTransaction();
+      return res.status(403).json({ message: 'Only the driver can complete this ride' });
+    }
+
+    if (ride.status === 'completed') {
+      await session.abortTransaction();
+      return res.status(400).json({ message: 'Ride is already completed' });
+    }
+
+    if (ride.status === 'cancelled') {
+      await session.abortTransaction();
+      return res.status(400).json({ message: 'Cannot complete a cancelled ride' });
+    }
+
+    // 2. Fetch confirmed bookings
+    const bookings = await Booking.find({
+      rideId: ride._id,
+      status: 'confirmed',
+    }).session(session);
+
+    let totalPayout = 0;
+
+    // 3. Complete each booking and credit driver
+    for (const booking of bookings) {
+      booking.status = 'completed';
+      await booking.save({ session });
+
+      const fareAmount = booking.holdAmountFinal || booking.holdAmountProvisional || 0;
+      if (fareAmount > 0) {
+        await payoutTripToDriver(driverId, booking._id, fareAmount, session);
+        totalPayout += fareAmount;
+      }
+    }
+
+    // 4. Mark ride status as completed
+    ride.status = 'completed';
+    await ride.save({ session });
+
+    // 5. Update Trust Graph: Record mutual rides between driver and passengers
+    const passengerIds = bookings.map((b) => b.passengerId);
+    await recordCompletedRideTrust(driverId, passengerIds, session);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      success: true,
+      message: 'Ride completed successfully. Payout released to driver.',
+      data: {
+        rideId: ride._id,
+        completedRiders: bookings.length,
+        totalPayout,
+      },
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     next(error);
   }
 };
