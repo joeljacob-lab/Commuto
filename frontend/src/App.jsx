@@ -13,6 +13,8 @@ import CreateOneOffRide from './pages/driver/CreateOneOffRide';
 import MyRides from './pages/driver/MyRides';
 import SearchRides from './pages/SearchRides.jsx';
 import NotificationBell from './components/NotificationBell';
+import AdminDashboard from './pages/admin/AdminDashboard.jsx';
+import ReportsQueue from './pages/admin/ReportsQueue.jsx';
 
 function PlaceholderHome() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -142,6 +144,8 @@ function App() {
           <Route path="/driver/rides" element={<ProtectedRoute requiredRole="driver"><MyRides /></ProtectedRoute>}/>
           <Route path="/driver/rides/create-single" element={<ProtectedRoute requiredRole="driver"><CreateOneOffRide /></ProtectedRoute>}/>
           <Route path="/search-rides" element={<SearchRides />} />
+          <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/reports" element={<ProtectedRoute requiredRole="admin"><ReportsQueue /></ProtectedRoute>} />
         </Routes>
       </Router>
     </AuthProvider>

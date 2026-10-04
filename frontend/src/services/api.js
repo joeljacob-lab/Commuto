@@ -102,4 +102,8 @@ export const getUnreadNotificationCount = () => api.get('/notifications/unread-c
 export const markNotificationAsRead = (id) => api.put(`/notifications/${id}/read`);
 export const markAllNotificationsAsRead = () => api.put('/notifications/read-all');
 
+// --- Phase 12: Admin Dashboard & User Management ---
+export const getAdminStats = () => api.get('/admin/stats');
+export const getAdminUsers = (params) => api.get('/admin/users', { params });
+
 export default api;

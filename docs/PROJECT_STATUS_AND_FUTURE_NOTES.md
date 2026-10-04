@@ -23,12 +23,12 @@ This document tracks the current execution state of the Commuto project, detaile
 | **Phase 9** | Bookings, Escrow Wallet & Roster Lock Job (Atomic seats, ledger holds) | **COMPLETED** | Fully verified & tested |
 | **Phase 10** | Trust Graph, Reviews, Reports (Pairwise trustedge, mutual rating) | **COMPLETED** | Fully verified & tested |
 | **Phase 11** | Notifications (Socket.IO + In-app persistence) | **COMPLETED** | Fully verified & tested |
-| **Phase 12** | Admin Dashboard & Stats (Platform counts, report handling) | Pending | Depends on Phase 11 |
+| **Phase 12** | Admin Dashboard & Stats (Platform counts, report handling) | **COMPLETED** | Fully verified & tested |
 | **Phase 13** | Frontend Polish & Full End-to-End Verification Flow | Pending | Final Phase |
 
 ---
 
-## 2. Current Implementation Status (End of Phase 11)
+## 2. Current Implementation Status (End of Phase 12)
 
 ### Backend
 * **Database & Config**: Mongoose models fully initialized using ESM. Natural keys correctly implemented for `User` (`collegeId`) and `Vehicle` (`registrationNumber`). Environment fully configured.
@@ -36,7 +36,7 @@ This document tracks the current execution state of the Commuto project, detaile
   * Express app with CORS (`credentials: true`, pointing to `CLIENT_URL`), JSON parsing (`10mb` limit), and urlencoded body parsing.
   * Root health routes implemented: `GET /` and `GET /api/health`.
   * Error middleware wired: `notFound` (404) and `errorHandler`.
-  * API mounted: `app.use('/api/auth', authRoutes)`, `app.use('/api/departments', departmentRoutes)`, `app.use('/api/vehicles', vehicleRoutes)`, `app.use('/api/fuelrates', fuelRateRoutes)`, `app.use('/api/routepools', routePoolRoutes)`, `app.use('/api/rides', rideRoutes)`, `app.use('/api/wallet', walletRoutes)`, `app.use('/api/bookings', bookingRoutes)`, `app.use('/api/reviews', reviewRoutes)`, `app.use('/api/reports', reportRoutes)`.
+  * API mounted: `app.use('/api/auth', authRoutes)`, `app.use('/api/departments', departmentRoutes)`, `app.use('/api/vehicles', vehicleRoutes)`, `app.use('/api/fuelrates', fuelRateRoutes)`, `app.use('/api/routepools', routePoolRoutes)`, `app.use('/api/rides', rideRoutes)`, `app.use('/api/wallet', walletRoutes)`, `app.use('/api/bookings', bookingRoutes)`, `app.use('/api/reviews', reviewRoutes)`, `app.use('/api/reports', reportRoutes)`, `app.use('/api/notifications', notificationRoutes)`, `app.use('/api/admin', adminRoutes)`.
   * Background cron jobs initialized after DB connection:
     * `startRideGenerationScheduler()`: runs automatically daily at 12:00 AM Midnight via `node-cron` to generate future recurring rides.
     * `startRosterLockJob()`: runs automatically daily at 9:00 PM (21:00) via `node-cron` to freeze headcount and finalize Equal Split pricing.
@@ -139,13 +139,21 @@ This document tracks the current execution state of the Commuto project, detaile
     * `markAllAsRead` (`PUT /api/notifications/read-all`): Batch-updates all unread notifications to read.
   * `backend/routes/notificationRoutes.js`: Authenticated notification endpoints mounted at `/api/notifications`.
   * Real-time triggers hooked across lifecycle: `booking_request` (seat reserved), `ride_cancelled` (passenger cancellation), `ride_completed` (trip payout), and roster lock events.
+* **Admin Analytics & Platform Moderation (Phase 12)**:
+  * `backend/controllers/adminController.js`:
+    * `getPlatformStats` (`GET /api/admin/stats`): Computes cross-collection platform metrics (users by role, vehicles by verification status, route pools, rides by status, bookings, safety reports, trust edges, reviews, and cumulative escrow volume from `WalletLedger` payouts).
+    * `getAllUsers` (`GET /api/admin/users`): Searchable campus student directory with role filtering, department population, and wallet balances.
+  * `backend/routes/adminRoutes.js`: Gated with `protect` and `requireRole('admin')`, mounted at `/api/admin`.
 
 ### Frontend
 * **Build Stack**: React 19 + Vite 8 + Tailwind CSS v4 + React Router v7.
-* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, auth interceptors, 401 handling, and service endpoints for Auth, Departments, Vehicles, Fuel Rates, Route Pools, Rides (`createOneOffRide`, `getMyDriverRides`, `getRideDetails`, `triggerDailyGeneration`, `completeRide`), Ride Search (`searchRides`), Wallet (`getMyWallet`, `topUpWallet`), Bookings (`createBooking`, `cancelBooking`, `getMyBookings`), Reviews (`createReview`, `getUserReviews`), Reports (`createReport`, `getMyReports`, `getAllReports`, `updateReportStatus`), and Notifications (`getMyNotifications`, `getUnreadNotificationCount`, `markNotificationAsRead`, `markAllNotificationsAsRead`).
+* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, auth interceptors, 401 handling, and service endpoints for Auth, Departments, Vehicles, Fuel Rates, Route Pools, Rides (`createOneOffRide`, `getMyDriverRides`, `getRideDetails`, `triggerDailyGeneration`, `completeRide`), Ride Search (`searchRides`), Wallet (`getMyWallet`, `topUpWallet`), Bookings (`createBooking`, `cancelBooking`, `getMyBookings`), Reviews (`createReview`, `getUserReviews`), Reports (`createReport`, `getMyReports`, `getAllReports`, `updateReportStatus`), Notifications (`getMyNotifications`, `getUnreadNotificationCount`, `markNotificationAsRead`, `markAllNotificationsAsRead`), and Admin (`getAdminStats`, `getAdminUsers`).
 * **`frontend/src/services/socket.js`**: Socket.IO client service managing connection lifecycle (`connectSocket`, `disconnectSocket`) and private room subscription (`join_user_room`).
 * **`frontend/src/components/NotificationBell.jsx`**: Real-time notification bell component with reactive unread badge, interactive dropdown feed, color-coded event icons, click-outside auto-dismiss, individual mark-read, and batch mark-all-read.
 * **`frontend/src/pages/driver/MyRides.jsx`**: Integrated **"🏁 Complete Ride & Get Payout"** button, status badge, and reactive refresh trigger.
+* **Admin Command Center & Moderation (Phase 12)**:
+  * `AdminDashboard.jsx`: Executive platform dashboard displaying KPI cards (Users, Vehicles, Rides, Escrow Payout Volume), quick-action links to vehicle queue and safety reports, and live searchable campus student directory.
+  * `ReportsQueue.jsx`: Full safety incident moderation interface featuring status filters (`open`, `investigating`, `resolved`, `dismissed`), incident details, linked trip context, and one-click triage buttons.
 * **`frontend/src/context/AuthContext.jsx`**:
   * Implemented full token verification against `/api/auth/me` on load.
   * Correctly toggles `loading` state while fetching session validity.
@@ -165,7 +173,7 @@ This document tracks the current execution state of the Commuto project, detaile
   * `MyRides.jsx`: Driver dashboard with visual distinction between `🔁 Recurring Pool Ride` and `🗓️ Single-Day Ride`, available seat counters, estimated share per head, frozen fuel rate used, roster lock countdowns, and on-demand generator trigger.
 * **Rider Matching Experience**:
   * `SearchRides.jsx`: Clean rider search interface with 1-click campus presets (`Aluva Metro Station`, `Campus Main Gate`, etc.) to prevent geocoding boundary drift, date/time pickers, dynamic match % badges, walk-to-boarding distance indicators, estimated cost per head, and viable ride filtering.
-* **Routing**: `App.jsx` includes `<Login>`, `<Register>`, protected `<DepartmentManagement>` (`/admin/departments`), protected `<VehicleForm>` (`/driver/vehicles/add`), protected `<VehicleVerificationQueue>` (`/admin/vehicles/pending`), protected `<FuelRateSettings>` (`/admin/fuel-rates`), protected `<CreateRoutePool>` (`/driver/routepools/create`), protected `<MyRoutePools>` (`/driver/routepools`), protected `<CreateOneOffRide>` (`/driver/rides/create-single`), protected `<MyRides>` (`/driver/rides`), and `<SearchRides>` (`/search-rides`).
+* **Routing**: `App.jsx` includes `<Login>`, `<Register>`, protected `<DepartmentManagement>` (`/admin/departments`), protected `<VehicleForm>` (`/driver/vehicles/add`), protected `<VehicleVerificationQueue>` (`/admin/vehicles/pending`), protected `<FuelRateSettings>` (`/admin/fuel-rates`), protected `<CreateRoutePool>` (`/driver/routepools/create`), protected `<MyRoutePools>` (`/driver/routepools`), protected `<CreateOneOffRide>` (`/driver/rides/create-single`), protected `<MyRides>` (`/driver/rides`), `<SearchRides>` (`/search-rides`), protected `<AdminDashboard>` (`/admin/dashboard`), and protected `<ReportsQueue>` (`/admin/reports`).
 
 ---
 
@@ -186,13 +194,12 @@ The following items were simplified or deferred to keep the codebase completely 
 * **Context:** `loading` state properly toggles on mount while fetching the initial backend JWT check.
 
 ### [REG-04] `server.js` — API Route Mounts
-* **Phase to Reintroduce:** **Phases 9 through 12**
-* **Context:** Root, `/api/auth`, `/api/departments`, `/api/vehicles`, `/api/fuelrates`, `/api/routepools`, `/api/rides`, `/api/wallet`, `/api/bookings`, `/api/reviews`, and `/api/reports` endpoints are actively mounted.
-* **What to mount sequentially in remaining phases:**
+* **Status:** **ALL PHASES MOUNTED & VERIFIED (Phases 0 through 12)**
+* **Context:** All platform routes are actively mounted:
   * Phase 9: `app.use('/api/bookings', bookingRoutes)` & `app.use('/api/wallet', walletRoutes)` (**MOUNTED & VERIFIED**)
   * Phase 10: `app.use('/api/reviews', reviewRoutes)` & `app.use('/api/reports', reportRoutes)` (**MOUNTED & VERIFIED**)
-  * Phase 11: `app.use('/api/notifications', notificationRoutes)`
-  * Phase 12: `app.use('/api/admin', adminRoutes)`
+  * Phase 11: `app.use('/api/notifications', notificationRoutes)` (**MOUNTED & VERIFIED**)
+  * Phase 12: `app.use('/api/admin', adminRoutes)` (**MOUNTED & VERIFIED**)
 
 ### [FEAT-01] One-Off / Single-Day Ride Publishing (Phase 7 Special Feature)
 * **Status:** **RESOLVED IN PHASE 7**
@@ -204,9 +211,8 @@ The following items were simplified or deferred to keep the codebase completely 
   * Fully implemented in `rideController.js`, `CreateOneOffRide.jsx`, and displayed in `MyRides.jsx`.
 
 ### [REG-05] `server.js` & `Socket.IO` — Real-Time Event Dispatchers
-* **Phase to Reintroduce:** **Phase 11 (Notifications & Real-Time)**
-* **Context:** Socket.IO is initialized and attached via `app.set('io', io)`, with basic connection and `join_user_room` listeners ready.
-* **What to add in Phase 11:** Dispatch socket events from controllers/services (e.g. `booking_requested`, `booking_accepted`, `roster_locked`, `ride_cancelled`) targeting user rooms.
+* **Status:** **RESOLVED IN PHASE 11**
+* **Context:** Socket.IO is initialized, attached via `app.set('io', io)`, with personal private rooms (`join_user_room`). Dispatches dual delivery notifications (`new_notification`) for booking requests, cancellations, and ride events.
 
 ### [REG-06] Database URI (`backend/.env`)
 * **Phase to Finalize:** **Phase 1 / Phase 2**

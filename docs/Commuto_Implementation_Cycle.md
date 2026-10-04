@@ -172,11 +172,18 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ---
 
-## Phase 12 — Admin Dashboard & Stats
+## Phase 12 — Admin Dashboard & Stats (COMPLETED)
 
-**Build:** `adminController.js` stats endpoint (counts across users/rides/reports/pending vehicles), wire up `admin/AdminDashboard.jsx`, `ReportsQueue.jsx` fully (if not already done in Phase 10).
+**Build:**
+- `controllers/adminController.js`: Platform-wide aggregation endpoint (`GET /api/admin/stats`) computing live counts across users by role, vehicles by verification status, route pools, rides by status, bookings, safety reports, trust edges/reviews, and cumulative escrow volume (`WalletLedger` type `'payout'`); plus campus student directory search and role-filter endpoint (`GET /api/admin/users`).
+- `routes/adminRoutes.js`: Admin-protected routes gated with `protect` and `requireRole('admin')`, mounted at `/api/admin` in `backend/server.js`.
+- Frontend: `frontend/src/pages/admin/AdminDashboard.jsx` (command center with KPI cards, quick-triage shortcuts, and interactive student directory) and `frontend/src/pages/admin/ReportsQueue.jsx` (safety complaints moderation queue with status filters and one-click triage buttons), wired into `App.jsx` under `/admin/dashboard` and `/admin/reports`.
 
-**Verify:** dashboard numbers match actual collection counts in MongoDB.
+**Verify:**
+- **Test 12.1 (Platform Stats Aggregation):** Verified dashboard KPI metrics match live MongoDB collections 1:1, including accurate breakdown of campus users, vehicles, rides, and cumulative financial escrow volume (₹48 verified).
+- **Test 12.2 (User Directory & Search):** Verified student directory filtering by role (Rider, Driver, Admin) and instant search by roll number/name.
+- **Test 12.3 (Safety Reports Triage):** Verified moderation queue lists submitted complaints with accused/reporter details, linked ride info, and status transitions (`open` → `investigating` → `resolved` / `dismissed`).
+- **Test 12.4 (Admin RBAC Security):** Verified admin endpoints and routes reject unauthenticated or non-admin users with 403 Forbidden.
 
 ---
 
