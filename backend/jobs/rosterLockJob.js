@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Ride from '../models/Ride.js';
 import Booking from '../models/Booking.js';
 import { processLockDelta } from '../services/escrowService.js';
+import { sendNotification } from '../services/notificationService.js';
 
 export const startRosterLockJob = () => {
     cron.schedule('0 21 * * *', async () => {
@@ -58,6 +59,26 @@ export const startRosterLockJob = () => {
                     }
 
                     await session.commitTransaction();
+
+                    // Notify Driver of locked roster
+                    sendNotification({
+                      userId: ride.driverId,
+                      type: 'booking_accepted',
+                      message: `Roster locked for tomorrow! Confirmed passengers: ${confirmedCount}. Final cost per head: ₹${costPerHeadFinal}.`,
+                      relatedRideId: ride._id,
+                    });
+
+                    // Notify each confirmed passenger of final locked cost
+                    for (const booking of bookings) {
+                      sendNotification({
+                        userId: booking.passengerId,
+                        type: 'booking_accepted',
+                        message: `Your ride for tomorrow is locked! Final cost is ₹${costPerHeadFinal}. Driver is ready.`,
+                        relatedRideId: ride._id,
+                      });
+                    }
+
+                    
                     console.log(`✅ Locked Ride ${ride._id} | Final Cost: ₹${costPerHeadFinal} | Confirmed Riders: ${confirmedCount}`);
                 } catch (err) {
                     await session.abortTransaction();

@@ -9,6 +9,7 @@ import { scoreAndRankRides } from '../services/matchingService.js';
 import Booking from '../models/Booking.js';
 import { payoutTripToDriver } from '../services/escrowService.js';
 import { recordCompletedRideTrust } from '../services/trustService.js';
+import { sendNotification } from '../services/notificationService.js';
 
 // @desc    Publish a One-Off / Single-Day Ride (Ad-hoc trip)
 // @route   POST /api/rides
@@ -274,6 +275,16 @@ export const completeRide = async (req, res, next) => {
 
     await session.commitTransaction();
     session.endSession();
+
+    // Notify all completed passengers to leave a review
+    for (const booking of bookings) {
+      sendNotification({
+        userId: booking.passengerId,
+        type: 'ride_reminder',
+        message: 'Trip completed! How was your commute? Please leave a rating and review for your driver.',
+        relatedRideId: ride._id,
+      });
+    }
 
     res.status(200).json({
       success: true,

@@ -95,4 +95,11 @@ export const getMyReports = () => api.get('/reports/my');
 export const getAllReports = (params) => api.get('/reports', { params });
 export const updateReportStatus = (id, status) => api.put(`/reports/${id}/status`, { status });
 
+
+// --- Phase 11: Notifications ---
+export const getMyNotifications = () => api.get('/notifications');
+export const getUnreadNotificationCount = () => api.get('/notifications/unread-count');
+export const markNotificationAsRead = (id) => api.put(`/notifications/${id}/read`);
+export const markAllNotificationsAsRead = () => api.put('/notifications/read-all');
+
 export default api;

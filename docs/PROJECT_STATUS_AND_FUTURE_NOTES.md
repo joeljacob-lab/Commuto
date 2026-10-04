@@ -22,13 +22,13 @@ This document tracks the current execution state of the Commuto project, detaile
 | **Phase 8** | Matching Engine (Pure deterministic scoring function + unit tests) | **COMPLETED** | Fully verified & tested |
 | **Phase 9** | Bookings, Escrow Wallet & Roster Lock Job (Atomic seats, ledger holds) | **COMPLETED** | Fully verified & tested |
 | **Phase 10** | Trust Graph, Reviews, Reports (Pairwise trustedge, mutual rating) | **COMPLETED** | Fully verified & tested |
-| **Phase 11** | Notifications (Socket.IO + In-app persistence) | Pending | Depends on Phase 10 |
+| **Phase 11** | Notifications (Socket.IO + In-app persistence) | **COMPLETED** | Fully verified & tested |
 | **Phase 12** | Admin Dashboard & Stats (Platform counts, report handling) | Pending | Depends on Phase 11 |
 | **Phase 13** | Frontend Polish & Full End-to-End Verification Flow | Pending | Final Phase |
 
 ---
 
-## 2. Current Implementation Status (End of Phase 10)
+## 2. Current Implementation Status (End of Phase 11)
 
 ### Backend
 * **Database & Config**: Mongoose models fully initialized using ESM. Natural keys correctly implemented for `User` (`collegeId`) and `Vehicle` (`registrationNumber`). Environment fully configured.
@@ -131,11 +131,20 @@ This document tracks the current execution state of the Commuto project, detaile
     * `createReport` (`POST /api/reports`): Free-form description text per `[REG-08]`, links optional ride, auto-increments `reportFlags` on pairwise `TrustEdge`.
     * `getMyReports` (`GET /api/reports/my`): Lists student's submitted complaints.
     * `getAllReports` (`GET /api/reports`) & `updateReportStatus` (`PUT /api/reports/:id/status`): Admin moderation queue (`open` $\rightarrow$ `investigating` $\rightarrow$ `resolved` $\rightarrow$ `dismissed`).
-  * `backend/routes/reportRoutes.js`: Authenticated student & admin routes mounted at `/api/reports`.
+  * `backend/services/notificationService.js`: Dual-delivery notification dispatcher persisting to MongoDB `Notification` collection and broadcasting real-time events (`new_notification`) via Socket.IO to private user rooms (`io.to(userId)`).
+  * `backend/controllers/notificationController.js`:
+    * `getMyNotifications` (`GET /api/notifications`): Returns user's 30 latest notifications with populated ride info.
+    * `getUnreadCount` (`GET /api/notifications/unread-count`): Returns count of unread notifications for badge rendering.
+    * `markAsRead` (`PUT /api/notifications/:id/read`): Marks single notification as read.
+    * `markAllAsRead` (`PUT /api/notifications/read-all`): Batch-updates all unread notifications to read.
+  * `backend/routes/notificationRoutes.js`: Authenticated notification endpoints mounted at `/api/notifications`.
+  * Real-time triggers hooked across lifecycle: `booking_request` (seat reserved), `ride_cancelled` (passenger cancellation), `ride_completed` (trip payout), and roster lock events.
 
 ### Frontend
 * **Build Stack**: React 19 + Vite 8 + Tailwind CSS v4 + React Router v7.
-* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, auth interceptors, 401 handling, and service endpoints for Auth, Departments, Vehicles, Fuel Rates, Route Pools, Rides (`createOneOffRide`, `getMyDriverRides`, `getRideDetails`, `triggerDailyGeneration`, `completeRide`), Ride Search (`searchRides`), Wallet (`getMyWallet`, `topUpWallet`), Bookings (`createBooking`, `cancelBooking`, `getMyBookings`), Reviews (`createReview`, `getUserReviews`), and Reports (`createReport`, `getMyReports`, `getAllReports`, `updateReportStatus`).
+* **`frontend/src/services/api.js`**: Axios client configured with `baseURL`, auth interceptors, 401 handling, and service endpoints for Auth, Departments, Vehicles, Fuel Rates, Route Pools, Rides (`createOneOffRide`, `getMyDriverRides`, `getRideDetails`, `triggerDailyGeneration`, `completeRide`), Ride Search (`searchRides`), Wallet (`getMyWallet`, `topUpWallet`), Bookings (`createBooking`, `cancelBooking`, `getMyBookings`), Reviews (`createReview`, `getUserReviews`), Reports (`createReport`, `getMyReports`, `getAllReports`, `updateReportStatus`), and Notifications (`getMyNotifications`, `getUnreadNotificationCount`, `markNotificationAsRead`, `markAllNotificationsAsRead`).
+* **`frontend/src/services/socket.js`**: Socket.IO client service managing connection lifecycle (`connectSocket`, `disconnectSocket`) and private room subscription (`join_user_room`).
+* **`frontend/src/components/NotificationBell.jsx`**: Real-time notification bell component with reactive unread badge, interactive dropdown feed, color-coded event icons, click-outside auto-dismiss, individual mark-read, and batch mark-all-read.
 * **`frontend/src/pages/driver/MyRides.jsx`**: Integrated **"🏁 Complete Ride & Get Payout"** button, status badge, and reactive refresh trigger.
 * **`frontend/src/context/AuthContext.jsx`**:
   * Implemented full token verification against `/api/auth/me` on load.

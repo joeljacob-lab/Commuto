@@ -18,6 +18,8 @@ import bookingRoutes from './routes/bookingRoutes.js';
 import { startRosterLockJob } from './jobs/rosterLockJob.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import { initNotificationSocket } from './services/notificationService.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -44,6 +46,8 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+// Initialize Notification Service with Socket.IO
+initNotificationSocket(io);
 
 
 // Attach socket.io to app context for controllers/services
@@ -110,6 +114,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Error handling middleware
 app.use(notFound);

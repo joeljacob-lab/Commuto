@@ -12,6 +12,7 @@ import MyRoutePools from './pages/driver/MyRoutePools';
 import CreateOneOffRide from './pages/driver/CreateOneOffRide';
 import MyRides from './pages/driver/MyRides';
 import SearchRides from './pages/SearchRides.jsx';
+import NotificationBell from './components/NotificationBell';
 
 function PlaceholderHome() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -37,6 +38,7 @@ function PlaceholderHome() {
             {isAuthenticated ? (
               <div className="flex items-center space-x-3">
                 <span className="text-sm text-slate-700 font-medium">Hello, {user?.name || 'User'}</span>
+                <NotificationBell />
                 <button
                   type="button"
                   onClick={logout}

@@ -154,11 +154,21 @@ Reference `Commuto_Master_Spec.md` for full field definitions, algorithms (§7),
 
 ---
 
-## Phase 11 — Notifications
+## Phase 11 — Notifications (COMPLETED)
 
-**Build:** `services/notificationService.js` wrapping both a MongoDB `notifications` write and a Socket.IO emit; hook it into booking request/accept/reject, ride reminders (can be a simple scheduled check), and cancellations. Frontend: `NotificationBell.jsx`, Socket.IO client connection in `App.jsx`.
+**Build:**
+- `services/notificationService.js`: Dual-delivery notification dispatcher (saves to MongoDB `Notification` collection + real-time push to student's private Socket.IO room `userId`).
+- Backend integration: Hooked `sendNotification` into booking creation (`booking_request`), seat cancellation (`ride_cancelled`), ride completion, and roster lock events.
+- Socket.IO connection handling in `backend/server.js`: Authenticated personal room joining (`join_user_room`).
+- `controllers/notificationController.js` + `routes/notificationRoutes.js`: User notification feed (`GET /api/notifications`), unread badge count (`GET /api/notifications/unread-count`), mark single as read (`PUT /api/notifications/:id/read`), mark all as read (`PUT /api/notifications/read-all`).
+- Frontend: `frontend/src/services/socket.js` (Socket.IO client connection & room join), `frontend/src/components/NotificationBell.jsx` (interactive bell dropdown with unread badge counter, real-time push receiver, mark read, and relative timestamps), mounted into main app layout.
 
-**Verify:** accepting a booking as a driver produces a real-time notification on the rider's open browser tab, and a persisted `notifications` document.
+**Verify:**
+- **Test 11.1 (Socket Connection & Room Join):** Verified client connects and joins private room (`socket.join(userId)`) upon login.
+- **Test 11.2 (Real-Time Push on Booking):** Verified reserving a seat as rider triggers instant real-time notification push to driver's open browser session without page refresh (`new_notification` event).
+- **Test 11.3 (Mark as Read):** Verified clicking notification or "Mark all read" updates status via API and clears unread badge in real time.
+- **Test 11.4 (Cancellation Push):** Verified seat cancellation triggers real-time push to driver notifying of seat/ride cancellation.
+- **Test 11.5 (Persistence):** Verified persisted documents in MongoDB `notifications` collection with proper recipient `userId`, `type`, `message`, and boolean `read` state.
 
 ---
 

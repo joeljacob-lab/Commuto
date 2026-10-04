@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Ride from '../models/Ride.js';
 import Booking from '../models/Booking.js';
 import { holdFunds, releaseFunds, forfeitFunds } from '../services/escrowService.js';
+import { sendNotification } from '../services/notificationService.js';
 
 /**
  * @desc    Book a seat on a ride
@@ -87,6 +88,14 @@ export const createBooking = async (req, res) => {
         await session.commitTransaction();
         session.endSession();
 
+        // Notify driver in real time
+        sendNotification({
+          userId: updatedRide.driverId,
+          type: 'booking_request',
+          message: `New passenger! A student reserved a seat on your ride to ${updatedRide.destination.label}.`,
+          relatedRideId: updatedRide._id,
+        });
+
         res.status(201).json({ success: true, data: booking });
     } catch (error) {
         await session.abortTransaction();
@@ -142,6 +151,16 @@ export const cancelBooking = async (req, res) => {
 
         await session.commitTransaction();
         session.endSession();
+
+        // Notify driver of cancellation
+        sendNotification({
+          userId: ride.driverId,
+          type: 'ride_cancelled',
+          message: isAfterLock
+            ? `Late cancellation: A passenger cancelled after roster lock. Their hold has been forfeited to your wallet.`
+            : `Seat cancelled: A passenger cancelled their booking for your ride to ${ride.destination.label}.`,
+          relatedRideId: ride._id,
+        });
 
         res.status(200).json({ 
             success: true, 
