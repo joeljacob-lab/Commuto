@@ -63,10 +63,23 @@ export const createBooking = async (req, res) => {
         // 4. Use estimatedCostPerHead pre-calculated on the Ride document
         const provisionalCost = updatedRide.estimatedCostPerHead || 20;
 
-        // 5. Boarding point fallback (required by Booking schema)
-        const boardingPoint = req.body?.boardingPoint || 
-                              (updatedRide.boardingPoints && updatedRide.boardingPoints[0]) || 
-                              updatedRide.origin;
+        // 5. Boarding point fallback & GeoJSON normalization
+        let boardingPoint = req.body?.boardingPoint;
+
+        if (boardingPoint) {
+            // Auto-wrap if sent as flat { label, coordinates }
+            if (boardingPoint.coordinates && !boardingPoint.point) {
+                boardingPoint = {
+                    label: boardingPoint.label || 'Pickup Point',
+                    point: {
+                        type: 'Point',
+                        coordinates: boardingPoint.coordinates,
+                    },
+                };
+            }
+        } else {
+            boardingPoint = (updatedRide.boardingPoints && updatedRide.boardingPoints[0]) || updatedRide.origin;
+        }
 
         // 6. Create booking record
         const booking = new Booking({
@@ -96,7 +109,16 @@ export const createBooking = async (req, res) => {
           relatedRideId: updatedRide._id,
         });
 
-        res.status(201).json({ success: true, data: booking });
+        // Populate driver details (name, phone, email) for instant rider access
+        const populatedBooking = await Booking.findById(booking._id).populate({
+            path: 'rideId',
+            populate: [
+                { path: 'vehicleId' },
+                { path: 'driverId', select: 'name phone email collegeId' }
+            ]
+        });
+
+        res.status(201).json({ success: true, data: populatedBooking });
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
@@ -184,7 +206,13 @@ export const cancelBooking = async (req, res) => {
 export const getMyBookings = async (req, res) => {
     try {
         const bookings = await Booking.find({ passengerId: req.user._id })
-            .populate({ path: 'rideId', populate: { path: 'vehicleId' } })
+            .populate({ 
+                path: 'rideId', 
+                populate: [
+                    { path: 'vehicleId' },
+                    { path: 'driverId', select: 'name phone email collegeId' }
+                ] 
+            })
             .sort({ createdAt: -1 });
             
         res.status(200).json({ success: true, count: bookings.length, data: bookings });
