@@ -1,38 +1,40 @@
 import express from 'express';
-import http from 'http';
-import cors from 'cors';
 import dotenv from 'dotenv';
-import mongoose from 'mongoose';
+import cors from 'cors';
+import http from 'http';
 import { Server } from 'socket.io';
 import connectDB from './config/db.js';
+import mongoose from 'mongoose';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
+
+// Route Imports
 import authRoutes from './routes/authRoutes.js';
 import departmentRoutes from './routes/departmentRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
 import fuelRateRoutes from './routes/fuelRateRoutes.js';
 import routePoolRoutes from './routes/routePoolRoutes.js';
 import rideRoutes from './routes/rideRoutes.js';
-import { startRideGenerationScheduler } from './jobs/dailyRideGeneratorJob.js';
 import walletRoutes from './routes/walletRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
-import { startRosterLockJob } from './jobs/rosterLockJob.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
-import { initNotificationSocket } from './services/notificationService.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+
+// Background Jobs
+import { startRideGenerationScheduler } from './jobs/dailyRideGeneratorJob.js';
+import { startRosterLockJob } from './jobs/rosterLockJob.js';
+import { initNotificationSocket } from './services/notificationService.js';
 
 // Load environment variables
 dotenv.config();
 
 // Database connection
 connectDB().then(() => {
-  console.log('✅ Database connected. Starting background jobs...');
+  console.log('✅ Database connected. Starting background schedulers...');
   
-  // Start the midnight ride generator
+  // Start schedulers once after DB connection is healthy
   startRideGenerationScheduler();
-  
-  // Start the 9 PM roster lock
   startRosterLockJob();
 });
 
@@ -47,9 +49,9 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+
 // Initialize Notification Service with Socket.IO
 initNotificationSocket(io);
-
 
 // Attach socket.io to app context for controllers/services
 app.set('io', io);
@@ -58,11 +60,10 @@ app.set('io', io);
 io.on('connection', (socket) => {
   console.log(`Socket client connected: ${socket.id}`);
 
-  // User room joining pattern for notifications
   socket.on('join_user_room', (userId) => {
     if (userId) {
       socket.join(userId);
-      console.log(`User ${userId} joined personal socket room`);
+      console.log(`Socket client ${socket.id} joined private room for user: ${userId}`);
     }
   });
 
@@ -126,5 +127,4 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   console.log(`Commuto Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-  startRideGenerationScheduler();
 });

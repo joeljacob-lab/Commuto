@@ -1,12 +1,13 @@
 import Ride from '../models/Ride.js';
 import Vehicle from '../models/Vehicle.js';
 import FuelRate from '../models/FuelRate.js';
+import Booking from '../models/Booking.js';
+import TrustEdge from '../models/TrustEdge.js';
 import mongoose from 'mongoose';
 import normalizeRegNo from '../utils/normalizeRegNo.js';
 import { calculateRoute } from '../services/routeService.js';
 import { generateDailyRides, calculateRosterLockTime } from '../jobs/dailyRideGeneratorJob.js';
 import { scoreAndRankRides } from '../services/matchingService.js';
-import Booking from '../models/Booking.js';
 import { payoutTripToDriver } from '../services/escrowService.js';
 import { recordCompletedRideTrust } from '../services/trustService.js';
 import { sendNotification } from '../services/notificationService.js';
@@ -104,12 +105,13 @@ export const createOneOffRide = async (req, res, next) => {
   }
 };
 
-// @desc    Get all rides offered by the logged-in driver with confirmed passengers
+// @desc    Get all rides offered by the logged-in driver with confirmed passengers & mutual ride counts
 // @route   GET /api/rides/my
 // @access  Driver only
 export const getMyDriverRides = async (req, res, next) => {
   try {
-    const rides = await Ride.find({ driverId: req.user._id })
+    const driverId = req.user._id;
+    const rides = await Ride.find({ driverId })
       .populate('vehicleId', 'model type seats mileageKmpl color')
       .sort({ date: -1, departureTime: -1 })
       .lean();
@@ -120,24 +122,49 @@ export const getMyDriverRides = async (req, res, next) => {
       rideId: { $in: rideIds },
       status: { $in: ['confirmed', 'completed'] },
     })
-
-        .populate({
+      .populate({
         path: 'passengerId',
         select: 'name email phone deptId year',
         populate: { path: 'deptId', select: 'deptName programName' },
       })
+      .lean();
 
-    // Attach passenger roster to each ride
+    // Batch query TrustEdge for driver and unique passengers
+    const uniquePassengerIds = [...new Set(bookings.map((b) => b.passengerId?._id).filter(Boolean))];
+    const trustQueries = uniquePassengerIds.map((pId) => {
+      const [userA, userB] = [driverId, pId].sort();
+      return { userA, userB };
+    });
+
+    const trustEdges = trustQueries.length
+      ? await TrustEdge.find({ $or: trustQueries }).lean()
+      : [];
+
+    const trustMap = {};
+    trustEdges.forEach((edge) => {
+      trustMap[`${edge.userA}:${edge.userB}`] = edge.mutualRideCount || 0;
+    });
+
+    // Attach passenger roster with mutualRideCount to each ride
     const ridesWithPassengers = rides.map((ride) => {
       const rideBookings = bookings.filter((b) => String(b.rideId) === String(ride._id));
       return {
         ...ride,
-        passengers: rideBookings.map((b) => ({
-          bookingId: b._id,
-          status: b.status,
-          boardingPoint: b.boardingPoint,
-          passenger: b.passengerId, // { _id, name, phone, email, deptId, year }
-        })),
+        passengers: rideBookings.map((b) => {
+          const pId = b.passengerId?._id;
+          let mutualRideCount = 0;
+          if (pId) {
+            const [userA, userB] = [driverId, pId].sort();
+            mutualRideCount = trustMap[`${userA}:${userB}`] || 0;
+          }
+          return {
+            bookingId: b._id,
+            status: b.status,
+            boardingPoint: b.boardingPoint,
+            passenger: b.passengerId, // { _id, name, phone, email, deptId, year }
+            mutualRideCount,
+          };
+        }),
       };
     });
 
@@ -147,17 +174,29 @@ export const getMyDriverRides = async (req, res, next) => {
   }
 };
 
-// @desc    Get single ride details
+// @desc    Get single ride details with viewer-to-driver mutual ride count
 // @route   GET /api/rides/:id
 // @access  Authenticated
 export const getRideById = async (req, res, next) => {
   try {
     const ride = await Ride.findById(req.params.id)
       .populate('driverId', 'name email phone')
-      .populate('vehicleId', 'model type seats color mileageKmpl');
+      .populate('vehicleId', 'model type seats color mileageKmpl')
+      .lean();
 
     if (!ride) return res.status(404).json({ message: 'Ride not found' });
-    res.status(200).json({ ride });
+
+    let mutualRideCount = 0;
+    const driverId = ride.driverId?._id || ride.driverId;
+    if (req.user?._id && driverId) {
+      const [userA, userB] = [req.user._id, driverId].sort();
+      const edge = await TrustEdge.findOne({ userA, userB }).lean();
+      if (edge) {
+        mutualRideCount = edge.mutualRideCount || 0;
+      }
+    }
+
+    res.status(200).json({ ride: { ...ride, mutualRideCount } });
   } catch (error) {
     next(error);
   }
@@ -180,9 +219,7 @@ export const triggerDailyGeneration = async (req, res, next) => {
   }
 };
 
-
-
-// @desc    Search and match rides for a rider
+// @desc    Search and match rides for a rider with mutual ride counts
 // @route   GET /api/rides/search
 // @access  Authenticated
 export const searchRides = async (req, res, next) => {
@@ -201,13 +238,11 @@ export const searchRides = async (req, res, next) => {
       date: searchDate,
       status: 'published',
       availableSeats: { $gt: 0 },
-      driverId: { $ne: req.user._id } // Don't show the user their own rides!
+      driverId: { $ne: req.user._id }, // Don't show the user their own rides!
     })
-    
-      .populate('driverId', 'name collegeId') // Will populate dept once schema allows, keeping simple for now
+      .populate('driverId', 'name collegeId')
       .populate('vehicleId', 'model color type')
-      .lean(); // .lean() makes them raw JS objects, much faster to process!
-    console.log(`🔍 Search Date: ${searchDate.toISOString()} | Logged-in User: ${req.user._id} | Candidates Found in DB: ${candidateRides.length}`);  
+      .lean();
 
     // 2. Prep rider query
     const riderQuery = {
@@ -216,13 +251,33 @@ export const searchRides = async (req, res, next) => {
       destinationCoordinates: [parseFloat(destLng), parseFloat(destLat)],
     };
 
-    // 3. Inject Trust Signals (Optional: boost if driver & rider share a department later)
-    const candidatesWithTrust = candidateRides.map(ride => {
-      // Default verified trust. You can expand this based on trustedges later!
-      ride.trustScore = 0.8; 
+    // 3. Batch query TrustEdge between rider and each candidate's driver
+    const driverIds = [...new Set(candidateRides.map((r) => r.driverId?._id || r.driverId).filter(Boolean))];
+    const trustQueries = driverIds.map((dId) => {
+      const [userA, userB] = [req.user._id, dId].sort();
+      return { userA, userB };
+    });
+
+    const trustEdges = trustQueries.length
+      ? await TrustEdge.find({ $or: trustQueries }).lean()
+      : [];
+
+    const trustMap = {};
+    trustEdges.forEach((edge) => {
+      trustMap[`${edge.userA}:${edge.userB}`] = edge.mutualRideCount || 0;
+    });
+
+    // Inject Mutual Rides & Trust Signal into candidate rides
+    const candidatesWithTrust = candidateRides.map((ride) => {
+      const dId = ride.driverId?._id || ride.driverId;
+      const [userA, userB] = [req.user._id, dId].sort();
+      const mutualRideCount = trustMap[`${userA}:${userB}`] || 0;
+
+      ride.mutualRideCount = mutualRideCount;
+      // Real Trust Signal calculation: base 0.8 + 0.05 per mutual ride (up to 1.0)
+      ride.trustScore = Math.min(1.0, 0.8 + mutualRideCount * 0.05);
       return ride;
     });
-    
 
     // 4. Run through the Pure Matching Engine!
     const rankedRides = scoreAndRankRides(riderQuery, candidatesWithTrust);
@@ -235,8 +290,6 @@ export const searchRides = async (req, res, next) => {
     next(error);
   }
 };
-
-
 
 /**
  * @desc    Mark ride as completed & release escrow payout to driver
@@ -297,7 +350,7 @@ export const completeRide = async (req, res, next) => {
 
     let totalPayout = 0;
 
-    // 3. Complete each booking and credit driver
+    // 4. Complete each booking and credit driver
     for (const booking of bookings) {
       booking.status = 'completed';
       await booking.save({ session });
@@ -309,11 +362,11 @@ export const completeRide = async (req, res, next) => {
       }
     }
 
-    // 4. Mark ride status as completed
+    // 5. Mark ride status as completed
     ride.status = 'completed';
     await ride.save({ session });
 
-    // 5. Update Trust Graph: Record mutual rides between driver and passengers
+    // 6. Update Trust Graph: Record mutual rides between driver and passengers
     const passengerIds = bookings.map((b) => b.passengerId);
     await recordCompletedRideTrust(driverId, passengerIds, session);
 

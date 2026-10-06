@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
-  Car, 
-  Clock, 
-  Calendar, 
-  Users, 
-  Fuel, 
-  ShieldCheck, 
   ArrowLeft, 
-  Phone, 
-  Mail, 
-  Ticket, 
-  Sparkles 
+  MapPin, 
+  Calendar, 
+  Clock, 
+  Users, 
+  Car, 
+  ShieldCheck, 
+  Fuel, 
+  CheckCircle2, 
+  Phone,
+  Mail
 } from 'lucide-react';
-import { getRideDetails, createBooking } from '../services/api';
+import { getRideById, createBooking } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const RideDetails = () => {
@@ -23,51 +23,57 @@ const RideDetails = () => {
 
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
 
   useEffect(() => {
-    const fetchRide = async () => {
-      try {
-        setLoading(true);
-        const res = await getRideDetails(id);
-        setRide(res.data.ride);
-      } catch (error) {
-        console.error('Failed to load ride:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    let isMounted = true;
 
-    fetchRide();
+    getRideById(id)
+      .then((res) => {
+        if (isMounted) {
+          setRide(res?.data?.ride || null);
+          setError('');
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setError(err?.response?.data?.message || 'Could not load ride details.');
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   const handleBookSeat = async () => {
     if (!ride) return;
-    const estShare = ride.estimatedCostPerHead || 20;
-
-    if (!window.confirm(`Reserve 1 seat on this ride?\nA provisional escrow hold of ₹${estShare} will be placed on your wallet.`)) {
-      return;
-    }
-
     try {
       setBookingLoading(true);
-      const res = await createBooking(ride._id, {
+      setError('');
+      
+      const payload = {
+        rideId: ride._id,
         boardingPoint: {
-          label: ride.origin?.label || 'Origin Point',
-          point: {
-            type: 'Point',
-            coordinates: ride.origin?.point?.coordinates || [76.3284, 10.0438],
-          },
-        },
-      });
+          label: ride.boardingPoints?.[0]?.label || ride.origin?.label || 'Origin Stop',
+          coordinates: ride.boardingPoints?.[0]?.point?.coordinates || ride.origin?.point?.coordinates || [0, 0]
+        }
+      };
 
-      const driverPhone = res.data?.data?.rideId?.driverId?.phone;
-      const driverName = res.data?.data?.rideId?.driverId?.name || 'the driver';
-
-      alert(`🎉 Seat Reserved Successfully!\n\nDriver: ${driverName}\n📞 Phone: ${driverPhone || 'Available in My Bookings'}\n\nRedirecting to My Bookings...`);
-      navigate('/bookings');
+      await createBooking(payload);
+      setBookingSuccess(true);
+      setTimeout(() => {
+        navigate('/bookings');
+      }, 1500);
     } catch (err) {
-      alert(err.response?.data?.message || 'Booking failed');
+      setError(err?.response?.data?.message || 'Failed to book seat. Please check your wallet balance.');
     } finally {
       setBookingLoading(false);
     }
@@ -75,8 +81,11 @@ const RideDetails = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500 text-sm">
-        Loading commute details...
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-slate-500 font-medium">Fetching corridor itinerary...</p>
+        </div>
       </div>
     );
   }
@@ -96,6 +105,8 @@ const RideDetails = () => {
   const driverName = typeof ride.driverId === 'object' ? (ride.driverId?.name || ride.driverId?._id) : ride.driverId;
   const driverPhone = typeof ride.driverId === 'object' ? ride.driverId?.phone : null;
   const driverEmail = typeof ride.driverId === 'object' ? ride.driverId?.email : null;
+
+  const rideDate = ride.date ? new Date(ride.date).toLocaleDateString() : 'Scheduled Date';
 
   return (
     <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
@@ -121,7 +132,7 @@ const RideDetails = () => {
                 {ride.status}
               </span>
               <span className="text-xs text-slate-400 font-mono">
-                #{String(ride._id).slice(-8).toUpperCase()}
+                #{String(ride._id || '').slice(-8).toUpperCase()}
               </span>
             </div>
 
@@ -130,7 +141,7 @@ const RideDetails = () => {
             </h1>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              <span>{new Date(ride.date).toLocaleDateString()}</span>
+              <span>{rideDate}</span>
               <span>•</span>
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span>Departs at {ride.departureTime}</span>
@@ -187,6 +198,19 @@ const RideDetails = () => {
                   </span>
                 </div>
               )}
+
+              {/* MUTUAL COMMUTES BADGE */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200">
+                <span className="text-slate-500 font-medium">Mutual Commutes</span>
+                <span className="font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full text-[11px] border border-indigo-100 inline-flex items-center gap-1">
+                  <span>🤝</span>
+                  <span>
+                    {ride.mutualRideCount > 0
+                      ? `${ride.mutualRideCount} shared ${ride.mutualRideCount === 1 ? 'ride' : 'rides'}`
+                      : 'First time riding together'}
+                  </span>
+                </span>
+              </div>
             </div>
 
             <p className="text-[11px] text-slate-500 leading-relaxed">
@@ -203,71 +227,109 @@ const RideDetails = () => {
 
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Vehicle Model</span>
+                <span className="text-slate-500 font-medium">Model</span>
                 <span className="font-bold text-slate-900 capitalize">
-                  {ride.vehicleId?.model || 'Car'}
+                  {ride.vehicleId?.model || 'Campus Vehicle'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Registration No</span>
-                <span className="font-mono font-bold text-slate-800">
-                  {ride.vehicleId?._id || 'Registered'}
+                <span className="text-slate-500 font-medium">Vehicle Type</span>
+                <span className="capitalize text-slate-700">{ride.vehicleId?.type || '4-Wheeler'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Available Capacity</span>
+                <span className="font-bold text-emerald-700">
+                  {ride.availableSeats} of {ride.totalSeats} seats open
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Total Seats</span>
-                <span className="font-semibold text-slate-800 flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5 text-slate-400" />
-                  {ride.vehicleId?.seats || 4} seats
-                </span>
+                <span className="text-slate-500 font-medium">Fuel Mileage Benchmark</span>
+                <span className="text-slate-700">{ride.vehicleId?.mileageKmpl || 15} km/L</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Fuel Mileage</span>
-                <span className="font-semibold text-slate-800 flex items-center gap-1">
-                  <Fuel className="w-3.5 h-3.5 text-slate-400" />
-                  {ride.vehicleId?.mileageKmpl || 15} km/l
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-xs pt-1">
-              <span className="text-slate-500">Available Passenger Seats:</span>
-              <span className="font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                {ride.availableSeats} Seats Left
-              </span>
             </div>
           </div>
         </div>
 
-        {/* Equal Split Cost Mechanics Banner */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-3">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            Equal Split Cost Mechanics
-          </h3>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            Commuto splits daily fuel cost equally: <strong>Cost / Head = Daily Trip Cost ÷ (1 + Confirmed Passengers)</strong>.
-            The driver is counted as one seat so single passengers are never burdened with 100% of fuel costs.
-            Headcounts and final fares freeze at <strong>9:00 PM</strong> on the evening before the ride.
+        {/* Boarding Points / Stops */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-indigo-600" />
+            Route Corridor &amp; Designated Boarding Points
+          </h2>
+
+          <div className="space-y-3">
+            {ride.boardingPoints?.map((bp, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-[10px]">
+                    {index + 1}
+                  </span>
+                  <span className="font-semibold text-slate-800">{bp.label}</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {bp.point?.coordinates ? `[${bp.point.coordinates[0].toFixed(3)}, ${bp.point.coordinates[1].toFixed(3)}]` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Cost Formula Breakdown */}
+        <div className="bg-indigo-50/60 rounded-2xl border border-indigo-100 p-6 shadow-xs space-y-3">
+          <div className="flex items-center gap-2 text-indigo-900 font-bold text-sm">
+            <Fuel className="w-4 h-4 text-indigo-600" />
+            Transparent Daily Cost Sharing Formula
+          </div>
+          <p className="text-xs text-indigo-950/80 leading-relaxed">
+            Commuto splits the actual fuel expense evenly between the driver and confirmed riders:
+          </p>
+          <div className="bg-white/80 p-3 rounded-xl font-mono text-[11px] text-indigo-900 border border-indigo-200/50">
+            Fare = (Trip Distance ÷ Vehicle Mileage × ₹{ride.fuelPricePerLitreUsed || 105}/L) ÷ (1 Driver + Confirmed Riders)
+          </div>
+          <p className="text-[11px] text-slate-500">
+            🔒 Seat fare is provisionally reserved from your escrow balance and frozen at 9:00 PM roster lock based on confirmed headcount.
           </p>
         </div>
 
-        {/* Action Button */}
-        <div className="flex justify-end pt-2">
-          {isDriver ? (
-            <div className="px-5 py-3 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 flex items-center gap-2">
-              <Car className="w-4 h-4 text-slate-500" />
-              You are the driver of this commute
+        {/* Actions Bar */}
+        {error && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium">
+            {error}
+          </div>
+        )}
+
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <Users className="w-4 h-4 text-slate-400" />
+            <span>{ride.availableSeats} seats remaining</span>
+          </div>
+
+          {bookingSuccess ? (
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              Seat Booked! Redirecting to Tickets...
             </div>
+          ) : isDriver ? (
+            <span className="text-xs text-slate-400 italic">
+              You are the driver of this trip
+            </span>
+          ) : ride.availableSeats <= 0 ? (
+            <button
+              disabled
+              className="bg-slate-200 text-slate-500 text-xs font-bold px-5 py-2.5 rounded-xl cursor-not-allowed"
+            >
+              Trip Full
+            </button>
           ) : (
             <button
-              type="button"
-              disabled={bookingLoading || ride.availableSeats <= 0}
               onClick={handleBookSeat}
-              className="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer"
+              disabled={bookingLoading}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-6 py-2.5 rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
             >
-              <Ticket className="w-4 h-4" />
-              {bookingLoading ? 'Reserving Seat...' : `Book Seat (Hold ₹${ride.estimatedCostPerHead || 20})`}
+              {bookingLoading ? 'Reserving...' : `Book Seat (Hold ₹${ride.costPerHeadFinal || ride.estimatedCostPerHead || 20})`}
             </button>
           )}
         </div>

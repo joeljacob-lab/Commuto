@@ -5,6 +5,9 @@ import FuelRate from '../models/FuelRate.js';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// Concurrency lock to prevent multiple triggers from overlapping
+let isGenerating = false;
+
 /**
  * Calculates rosterLockAt timestamp:
  * 1. Morning rides (<= 12:00 PM): Locks at 9:00 PM the evening before.
@@ -41,89 +44,106 @@ export const calculateRosterLockTime = (rideDate, departureTimeStr) => {
  * Defaults to TOMORROW so rides are ready the evening before.
  */
 export const generateDailyRides = async (targetDate) => {
-  let normalizedDate;
-  if (!targetDate) {
-    // Default to Tomorrow
-    normalizedDate = new Date();
-    normalizedDate.setDate(normalizedDate.getDate() + 1);
-  } else {
-    normalizedDate = new Date(targetDate);
-  }
-  normalizedDate.setHours(0, 0, 0, 0);
-
-  const dayOfWeek = DAY_NAMES[normalizedDate.getDay()];
-
-  // 1. Fetch latest active fuel rate
-  const latestFuel = await FuelRate.findOne().sort({ effectiveDate: -1 });
-  const fuelPrice = latestFuel?.pricePerLitre || 105.0;
-
-  // 2. Find active route pools matching that day's schedule
-  const activePools = await RoutePool.find({
-    status: 'active',
-    recurrenceDays: dayOfWeek,
-  }).populate('vehicleId');
-
-  let generatedCount = 0;
-  const createdRides = [];
-
-  for (const pool of activePools) {
-    if (!pool.vehicleId || pool.vehicleId.verificationStatus !== 'approved') {
-      continue;
-    }
-
-    // 3. Prevent duplicate generation for the same pool on the same date
-    const existingRide = await Ride.findOne({
-      routePoolId: pool._id,
-      date: {
-        $gte: normalizedDate,
-        $lt: new Date(normalizedDate.getTime() + 24 * 60 * 60 * 1000),
-      },
-    });
-
-    if (existingRide) {
-      continue;
-    }
-
-    // 4. Fair cost estimate
-    const vehicle = pool.vehicleId;
-    const mileage = vehicle.mileageKmpl || 15;
-    const dailyTripCost = (pool.distanceKm / mileage) * fuelPrice;
-    const estimatedCostPerHead = Math.round(dailyTripCost / (1 + pool.maxMembers));
-
-    // 5. Compute roster lock time (9:00 PM previous evening)
-    const rosterLockAt = calculateRosterLockTime(normalizedDate, pool.departureWindowStart);
-
-    // 6. Create the Ride
-    const newRide = await Ride.create({
-      routePoolId: pool._id,
-      driverId: pool.driverId,
-      vehicleId: vehicle._id,
-      date: normalizedDate,
-      departureTime: pool.departureWindowStart,
-      origin: pool.origin,
-      destination: pool.destination,
-      routePolyline: pool.routePolyline,
-      boardingPoints: [pool.origin],
-      availableSeats: pool.maxMembers,
-      totalSeats: pool.maxMembers,
-      fuelPricePerLitreUsed: fuelPrice,
-      estimatedCostPerHead: Math.max(10, estimatedCostPerHead),
-      rosterLockAt,
-      status: 'published',
-    });
-
-    createdRides.push(newRide);
-    generatedCount++;
+  if (isGenerating) {
+    console.log('⚠️ [Job Guard] generateDailyRides is already running. Skipping concurrent execution.');
+    return { generatedCount: 0, targetDate: 'In Progress', rides: [] };
   }
 
-  return {
-    generatedCount,
-    targetDate: normalizedDate.toLocaleDateString(),
-    rides: createdRides,
-  };
+  isGenerating = true;
+
+  try {
+    let normalizedDate;
+    if (!targetDate) {
+      // Default to Tomorrow
+      normalizedDate = new Date();
+      normalizedDate.setDate(normalizedDate.getDate() + 1);
+    } else {
+      normalizedDate = new Date(targetDate);
+    }
+    normalizedDate.setHours(0, 0, 0, 0);
+
+    const dayOfWeek = DAY_NAMES[normalizedDate.getDay()];
+
+    // 1. Fetch latest active fuel rate
+    const latestFuel = await FuelRate.findOne().sort({ effectiveDate: -1 });
+    const fuelPrice = latestFuel?.pricePerLitre || 105.0;
+
+    // 2. Find active route pools matching that day's schedule
+    const activePools = await RoutePool.find({
+      status: 'active',
+      recurrenceDays: dayOfWeek,
+    }).populate('vehicleId');
+
+    let generatedCount = 0;
+    const createdRides = [];
+
+    for (const pool of activePools) {
+      if (!pool.vehicleId || pool.vehicleId.verificationStatus !== 'approved') {
+        continue;
+      }
+
+      // 3. Prevent duplicate generation for the same pool on the same date
+      const existingRide = await Ride.findOne({
+        routePoolId: pool._id,
+        date: {
+          $gte: normalizedDate,
+          $lt: new Date(normalizedDate.getTime() + 24 * 60 * 60 * 1000),
+        },
+      });
+
+      if (existingRide) {
+        continue;
+      }
+
+      // 4. Fair cost estimate
+      const vehicle = pool.vehicleId;
+      const mileage = vehicle.mileageKmpl || 15;
+      const dailyTripCost = (pool.distanceKm / mileage) * fuelPrice;
+      const estimatedCostPerHead = Math.round(dailyTripCost / (1 + pool.maxMembers));
+
+      // 5. Compute roster lock time (9:00 PM previous evening)
+      const rosterLockAt = calculateRosterLockTime(normalizedDate, pool.departureWindowStart);
+
+      // 6. Create the Ride (try-catch duplicate key errors gracefully)
+      try {
+        const newRide = await Ride.create({
+          routePoolId: pool._id,
+          driverId: pool.driverId,
+          vehicleId: vehicle._id,
+          date: normalizedDate,
+          departureTime: pool.departureWindowStart,
+          origin: pool.origin,
+          destination: pool.destination,
+          routePolyline: pool.routePolyline,
+          boardingPoints: [pool.origin],
+          availableSeats: pool.maxMembers,
+          totalSeats: pool.maxMembers,
+          fuelPricePerLitreUsed: fuelPrice,
+          estimatedCostPerHead: Math.max(10, estimatedCostPerHead),
+          rosterLockAt,
+          status: 'published',
+        });
+
+        createdRides.push(newRide);
+        generatedCount++;
+      } catch (err) {
+        if (err.code === 11000) {
+          // Already generated concurrently, ignore cleanly
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    return {
+      generatedCount,
+      targetDate: normalizedDate.toLocaleDateString(),
+      rides: createdRides,
+    };
+  } finally {
+    isGenerating = false;
+  }
 };
-
-
 
 /**
  * Background Scheduler: Runs automatically at 12:00 AM (Midnight) every night

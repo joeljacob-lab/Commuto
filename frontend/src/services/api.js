@@ -6,8 +6,7 @@ const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
-// Attach the JWT to every outgoing request automatically, so individual
-// components never have to remember to do it themselves.
+// Attach the JWT to every outgoing request automatically
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('commuto_token');
   if (token) {
@@ -16,10 +15,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// If the backend ever responds 401 (expired/invalid token), clear local
-// auth state so the UI doesn't sit in a broken "logged in but every
-// request fails" state. Doesn't force-redirect here — AuthContext/
-// ProtectedRoute decide what the UI does next.
+// Clear auth state if backend responds with 401
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -63,26 +59,30 @@ export const deleteRoutePool = (id) => api.delete(`/routepools/${id}`);
 export const createOneOffRide = (data) => api.post('/rides', data);
 export const getMyDriverRides = () => api.get('/rides/my');
 export const getRideDetails = (id) => api.get(`/rides/${id}`);
+export const getRideById = (id) => api.get(`/rides/${id}`); // Exported alias to prevent ESM import mismatch
 export const triggerDailyGeneration = (date) => api.post('/rides/generate-daily', { date });
 
-// ----Ride search endpoint----
+// ---- Ride search endpoint ----
 export const searchRides = (params) => {
   const queryString = new URLSearchParams(params).toString();
   return api.get(`/rides/search?${queryString}`);
 };
-
 
 // --- Wallet endpoints ---
 export const getMyWallet = () => api.get('/wallet/balance');
 export const topUpWallet = (data) => api.post('/wallet/topup', data);
 export const withdrawWallet = (data) => api.post('/wallet/withdraw', data);
 
-
 // --- Rides Actions ---
 export const completeRide = (id) => api.put(`/rides/${id}/complete`);
 
 // --- Booking Endpoints ---
-export const createBooking = (rideId, data) => api.post(`/bookings/ride/${rideId}`, data);
+export const createBooking = (rideIdOrPayload, data) => {
+  if (typeof rideIdOrPayload === 'object' && rideIdOrPayload?.rideId) {
+    return api.post(`/bookings/ride/${rideIdOrPayload.rideId}`, rideIdOrPayload);
+  }
+  return api.post(`/bookings/ride/${rideIdOrPayload}`, data);
+};
 export const cancelBooking = (id) => api.put(`/bookings/${id}/cancel`);
 export const getMyBookings = () => api.get('/bookings/my-bookings');
 
@@ -95,7 +95,6 @@ export const createReport = (data) => api.post('/reports', data);
 export const getMyReports = () => api.get('/reports/my');
 export const getAllReports = (params) => api.get('/reports', { params });
 export const updateReportStatus = (id, status) => api.put(`/reports/${id}/status`, { status });
-
 
 // --- Phase 11: Notifications ---
 export const getMyNotifications = () => api.get('/notifications');

@@ -23,7 +23,7 @@ import WithdrawModal from '../components/WithdrawModal';
 const Profile = () => {
   const { user, updateUser } = useAuth();
   const [walletData, setWalletData] = useState({ walletBalance: 0, transactions: [] });
-  const [reviewsData, setReviewsData] = useState({ averageRating: null, totalReviews: 0, reviews: [] });
+  const [reviewsData, setReviewsData] = useState({ averageRating: null, reviewCount: 0, reviews: [] });
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -40,11 +40,16 @@ const Profile = () => {
         setLoading(true);
         const [walletRes, reviewsRes] = await Promise.all([
           getMyWallet().catch(() => ({ data: { walletBalance: user.walletBalance || 0, transactions: [] } })),
-          getUserReviews(user._id).catch(() => ({ data: { averageRating: null, totalReviews: 0, reviews: [] } })),
+          getUserReviews(user._id).catch(() => ({ data: { data: { averageRating: null, reviewCount: 0, reviews: [] } } })),
         ]);
 
         setWalletData(walletRes.data);
-        setReviewsData(reviewsRes.data);
+        const reviewsPayload = reviewsRes.data?.data || reviewsRes.data || {};
+        setReviewsData({
+          averageRating: reviewsPayload.averageRating ?? null,
+          reviewCount: reviewsPayload.reviewCount ?? 0,
+          reviews: reviewsPayload.reviews || [],
+        });
       } catch (error) {
         console.error('Failed to load profile data:', error);
       } finally {
@@ -166,7 +171,9 @@ const Profile = () => {
 
               <div className="flex items-baseline gap-2 mt-2">
                 <span className="text-4xl font-black text-slate-900">
-                  {reviewsData.averageRating ? reviewsData.averageRating.toFixed(1) : '5.0'}
+                  {reviewsData.averageRating !== null && reviewsData.averageRating !== undefined
+                    ? Number(reviewsData.averageRating).toFixed(1)
+                    : '5.0'}
                 </span>
                 <div className="flex text-amber-400">
                   <Star className="w-5 h-5 fill-current" />
@@ -174,7 +181,7 @@ const Profile = () => {
               </div>
 
               <p className="text-xs text-slate-500 mt-2">
-                Based on {reviewsData.totalReviews} mutual ride {reviewsData.totalReviews === 1 ? 'review' : 'reviews'}.
+                Based on {reviewsData.reviewCount} mutual ride {reviewsData.reviewCount === 1 ? 'review' : 'reviews'}.
               </p>
             </div>
 

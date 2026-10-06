@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { searchRides, createBooking } from '../services/api.js';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const POPULAR_LOCATIONS = [
   { label: 'Campus Main Gate', coordinates: [76.3284, 10.0438] },
@@ -38,84 +38,101 @@ const SearchRides = () => {
   const [destResults, setDestResults] = useState([]);
   const [searchingDest, setSearchingDest] = useState(false);
 
-  // Date & Time
+  // Date and Time State
   const [date, setDate] = useState(getTomorrowDateStr());
   const [time, setTime] = useState('08:30');
 
-  // Search Results & Feedback
+  // Search Results
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchAttempted, setSearchAttempted] = useState(false);
 
-  // Helper: OpenStreetMap & Preset Search
-  const searchPlace = async (query, target) => {
-    const trimmed = query.trim();
-    if (!trimmed || trimmed.length < 3) return;
-
-    if (target === 'origin') setSearchingOrigin(true);
-    else setSearchingDest(true);
-
-    try {
-      // 1. Instant local matching with campus presets
-      const matchedPresets = POPULAR_LOCATIONS.filter((loc) =>
-        loc.label.toLowerCase().includes(trimmed.toLowerCase())
-      ).map((loc) => ({
-        display_name: `${loc.label} (Campus Preset)`,
-        lat: loc.coordinates[1],
-        lon: loc.coordinates[0],
-        isPreset: true,
-      }));
-
-      // 2. Fetch live OpenStreetMap suggestions
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          trimmed
-        )}&limit=5&countrycodes=in`
-      );
-      const data = await res.json();
-
-      const combined = [...matchedPresets, ...data];
-      if (target === 'origin') setOriginResults(combined);
-      else setDestResults(combined);
-    } catch {
-      // Quiet fail on network debounce
-    } finally {
-      if (target === 'origin') setSearchingOrigin(false);
-      else setSearchingDest(false);
+  const handleOriginChange = (val) => {
+    setOriginQuery(val);
+    if (!val || val.length < 3) {
+      setOriginResults([]);
     }
   };
 
-  // Real-time typing debounce for Origin
-  useEffect(() => {
-    if (originQuery.trim().length < 3 || originQuery === origin.label) {
-      return;
+  const handleDestChange = (val) => {
+    setDestQuery(val);
+    if (!val || val.length < 3) {
+      setDestResults([]);
     }
+  };
 
-    const timer = setTimeout(() => {
-      searchPlace(originQuery, 'origin');
+  // Debounced nominatim autocomplete for origin
+  useEffect(() => {
+    if (!originQuery || originQuery.length < 3) return;
+
+    const timer = setTimeout(async () => {
+      setSearchingOrigin(true);
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            originQuery
+          )}&countrycodes=in&limit=4`
+        );
+        const data = await res.json();
+
+        const presets = POPULAR_LOCATIONS.filter((loc) =>
+          loc.label.toLowerCase().includes(originQuery.toLowerCase())
+        ).map((loc) => ({
+          display_name: `${loc.label} (Campus Preset)`,
+          lat: loc.coordinates[1],
+          lon: loc.coordinates[0],
+          isPreset: true,
+        }));
+
+        setOriginResults([...presets, ...data]);
+      } catch (err) {
+        console.error('Origin geocoding error:', err);
+      } finally {
+        setSearchingOrigin(false);
+      }
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [originQuery, origin.label]);
+  }, [originQuery]);
 
-  // Real-time typing debounce for Destination
+  // Debounced nominatim autocomplete for destination
   useEffect(() => {
-    if (destQuery.trim().length < 3 || destQuery === destination.label) {
-      return;
-    }
+    if (!destQuery || destQuery.length < 3) return;
 
-    const timer = setTimeout(() => {
-      searchPlace(destQuery, 'dest');
+    const timer = setTimeout(async () => {
+      setSearchingDest(true);
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            destQuery
+          )}&countrycodes=in&limit=4`
+        );
+        const data = await res.json();
+
+        const presets = POPULAR_LOCATIONS.filter((loc) =>
+          loc.label.toLowerCase().includes(destQuery.toLowerCase())
+        ).map((loc) => ({
+          display_name: `${loc.label} (Campus Preset)`,
+          lat: loc.coordinates[1],
+          lon: loc.coordinates[0],
+          isPreset: true,
+        }));
+
+        setDestResults([...presets, ...data]);
+      } catch (err) {
+        console.error('Dest geocoding error:', err);
+      } finally {
+        setSearchingDest(false);
+      }
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [destQuery, destination.label]);
+  }, [destQuery]);
 
-  // Browser Geolocation API ("Use My Current Location")
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser');
+      alert('Geolocation is not supported by your browser.');
       return;
     }
 
@@ -180,10 +197,9 @@ const SearchRides = () => {
         time,
       });
 
-      setResults(response.data.rides);
+      setResults(response.data.rides || []);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to search rides');
-      setResults([]);
+      setError(err.response?.data?.message || 'Failed to match viable rides. Check your parameters.');
     } finally {
       setIsLoading(false);
     }
@@ -191,190 +207,198 @@ const SearchRides = () => {
 
   const handleBookRide = async (ride) => {
     const estimatedFare = ride.estimatedCostPerHead || ride.estimatedCost || 0;
-    if (!window.confirm(`Reserve 1 seat on this ride?\nA provisional escrow hold of ₹${estimatedFare} will be placed on your wallet balance.`)) {
-      return;
-    }
+    const confirmMsg = `Confirm booking for ${ride.departureTime} with ${ride.driverId?.name || 'Driver'}?\n\nAn escrow hold of ₹${estimatedFare} will be placed on your wallet and locked at 9:00 PM.`;
+
+    if (!window.confirm(confirmMsg)) return;
 
     try {
       setBookingRideId(ride._id);
-      const res = await createBooking(ride._id, {
+
+      const bookingPayload = {
+        rideId: ride._id,
         boardingPoint: {
-          label: origin.label,
-          point: {
-            type: 'Point',
-            coordinates: origin.coordinates,
-          },
+          label: origin.label || 'Passenger Pickup',
+          coordinates: origin.coordinates,
         },
-      });
+      };
 
-      const driverPhone = res.data?.data?.rideId?.driverId?.phone;
-      const driverName = res.data?.data?.rideId?.driverId?.name || 'the driver';
-
-      alert(`🎉 Seat Reserved Successfully!\n\nDriver: ${driverName}\n📞 Phone: ${driverPhone || 'Check My Bookings'}\n\nRedirecting to My Bookings...`);
+      await createBooking(bookingPayload);
+      alert('🎉 Seat reserved successfully! An escrow hold has been placed. Final fare locks at 9:00 PM.');
       navigate('/bookings');
     } catch (err) {
-      alert(err.response?.data?.message || 'Booking failed');
+      const msg = err.response?.data?.message || 'Booking failed. Check your wallet balance.';
+      alert(`⚠️ ${msg}`);
     } finally {
       setBookingRideId(null);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 py-8">
-      <h1 className="text-2xl font-bold mb-6 text-slate-800">Find a Ride</h1>
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">Find a Carpool Match</h1>
+        <p className="text-slate-500 text-sm">
+          Deterministic corridor matching with transparent escrow cost sharing.
+        </p>
+      </div>
 
-      <form onSubmit={handleSearch} className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-8 space-y-6">
-        {/* LOCATIONS GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* ORIGIN BOX */}
-          <div className="relative space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
-                Origin / Pickup
-              </label>
-              <button
-                type="button"
-                onClick={handleUseCurrentLocation}
-                className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
-              >
-                📍 Use Current Location
-              </button>
-            </div>
-
-            <input
-              type="text"
-              required
-              className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              placeholder="Search origin address or metro..."
-              value={originQuery}
-              onChange={(e) => setOriginQuery(e.target.value)}
-            />
-
-            {searchingOrigin && (
-              <span className="text-[10px] text-slate-400 absolute right-2 top-8">
-                Searching...
-              </span>
-            )}
-
-            {/* Suggestions Dropdown */}
-            {originResults.length > 0 && (
-              <ul className="absolute z-10 w-full bg-white border border-slate-200 rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto">
-                {originResults.map((item, idx) => (
-                  <li
-                    key={idx}
-                    onClick={() => handleSelectOrigin(item)}
-                    className="p-2 text-xs hover:bg-indigo-50 cursor-pointer border-b border-slate-100 flex items-center justify-between"
-                  >
-                    <span className="truncate">{item.display_name}</span>
-                    {item.isPreset && (
-                      <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded ml-1 font-bold">
-                        Preset
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {/* Selected Badge */}
-            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>Selected: <strong className="text-slate-700">{origin.label}</strong></span>
-            </div>
-
-            {/* Presets */}
-            <div className="pt-2 border-t border-slate-200">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Quick Presets</span>
-              <div className="flex flex-wrap gap-1">
-                {POPULAR_LOCATIONS.map((loc) => (
-                  <button
-                    type="button"
-                    key={loc.label}
-                    onClick={() => {
-                      setOrigin(loc);
-                      setOriginQuery(loc.label);
-                      setOriginResults([]);
-                    }}
-                    className="text-[10px] bg-white border border-slate-300 px-2 py-1 rounded hover:bg-slate-100 text-slate-700 cursor-pointer"
-                  >
-                    {loc.label.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-            </div>
+      <form onSubmit={handleSearch} className="bg-white p-5 rounded-xl shadow-xs border border-slate-200 space-y-4">
+        {/* ORIGIN BOX */}
+        <div className="relative space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
+              Origin / Pickup Location
+            </label>
+            <button
+              type="button"
+              onClick={handleUseCurrentLocation}
+              className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium underline flex items-center gap-1 cursor-pointer"
+            >
+              📍 Use Current Location
+            </button>
           </div>
 
-          {/* DESTINATION BOX */}
-          <div className="relative space-y-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
-              Destination / Drop-off
-            </label>
+          <input
+            type="text"
+            required
+            className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            placeholder="Search pickup point, metro, or landmark..."
+            value={originQuery}
+            onChange={(e) => handleOriginChange(e.target.value)}
+          />
 
-            <input
-              type="text"
-              required
-              className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              placeholder="Search destination or college gate..."
-              value={destQuery}
-              onChange={(e) => setDestQuery(e.target.value)}
-            />
+          {searchingOrigin && (
+            <span className="text-[10px] text-slate-400 absolute right-2 top-8">
+              Searching...
+            </span>
+          )}
 
-            {searchingDest && (
-              <span className="text-[10px] text-slate-400 absolute right-2 top-8">
-                Searching...
-              </span>
-            )}
+          {/* Suggestions Dropdown */}
+          {originResults.length > 0 && (
+            <ul className="absolute z-10 w-full bg-white border border-slate-200 rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto">
+              {originResults.map((item, idx) => (
+                <li
+                  key={idx}
+                  onClick={() => handleSelectOrigin(item)}
+                  className="p-2 text-xs hover:bg-indigo-50 cursor-pointer border-b border-slate-100 flex items-center justify-between"
+                >
+                  <span className="truncate">{item.display_name}</span>
+                  {item.isPreset && (
+                    <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded ml-1 font-bold">
+                      Preset
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
 
-            {/* Suggestions Dropdown */}
-            {destResults.length > 0 && (
-              <ul className="absolute z-10 w-full bg-white border border-slate-200 rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto">
-                {destResults.map((item, idx) => (
-                  <li
-                    key={idx}
-                    onClick={() => handleSelectDest(item)}
-                    className="p-2 text-xs hover:bg-indigo-50 cursor-pointer border-b border-slate-100 flex items-center justify-between"
-                  >
-                    <span className="truncate">{item.display_name}</span>
-                    {item.isPreset && (
-                      <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded ml-1 font-bold">
-                        Preset
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+          {/* Selected Badge */}
+          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-indigo-500"></span>
+            <span>Selected: <strong className="text-slate-700">{origin.label}</strong></span>
+          </div>
 
-            {/* Selected Badge */}
-            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>Selected: <strong className="text-slate-700">{destination.label}</strong></span>
-            </div>
-
-            {/* Presets */}
-            <div className="pt-2 border-t border-slate-200">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Quick Presets</span>
-              <div className="flex flex-wrap gap-1">
-                {POPULAR_LOCATIONS.map((loc) => (
-                  <button
-                    type="button"
-                    key={loc.label}
-                    onClick={() => {
-                      setDestination(loc);
-                      setDestQuery(loc.label);
-                      setDestResults([]);
-                    }}
-                    className="text-[10px] bg-white border border-slate-300 px-2 py-1 rounded hover:bg-slate-100 text-slate-700 cursor-pointer"
-                  >
-                    {loc.label.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
+          {/* Presets */}
+          <div className="pt-2 border-t border-slate-200">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Quick Presets</span>
+            <div className="flex flex-wrap gap-1">
+              {POPULAR_LOCATIONS.map((loc) => (
+                <button
+                  type="button"
+                  key={loc.label}
+                  onClick={() => {
+                    setOrigin(loc);
+                    setOriginQuery(loc.label);
+                    setOriginResults([]);
+                  }}
+                  className={`text-[11px] px-2 py-0.5 rounded-full border transition cursor-pointer ${
+                    origin.label === loc.label
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {loc.label.split(' ')[0]}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* DATE & TIME ROW */}
+        {/* DESTINATION BOX */}
+        <div className="relative space-y-2">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
+            Destination / Drop-off
+          </label>
+
+          <input
+            type="text"
+            required
+            className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            placeholder="Search destination or college gate..."
+            value={destQuery}
+            onChange={(e) => handleDestChange(e.target.value)}
+          />
+
+          {searchingDest && (
+            <span className="text-[10px] text-slate-400 absolute right-2 top-8">
+              Searching...
+            </span>
+          )}
+
+          {/* Suggestions Dropdown */}
+          {destResults.length > 0 && (
+            <ul className="absolute z-10 w-full bg-white border border-slate-200 rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto">
+              {destResults.map((item, idx) => (
+                <li
+                  key={idx}
+                  onClick={() => handleSelectDest(item)}
+                  className="p-2 text-xs hover:bg-indigo-50 cursor-pointer border-b border-slate-100 flex items-center justify-between"
+                >
+                  <span className="truncate">{item.display_name}</span>
+                  {item.isPreset && (
+                    <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded ml-1 font-bold">
+                      Preset
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Selected Badge */}
+          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Selected: <strong className="text-slate-700">{destination.label}</strong></span>
+          </div>
+
+          {/* Presets */}
+          <div className="pt-2 border-t border-slate-200">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Quick Presets</span>
+            <div className="flex flex-wrap gap-1">
+              {POPULAR_LOCATIONS.map((loc) => (
+                <button
+                  type="button"
+                  key={loc.label}
+                  onClick={() => {
+                    setDestination(loc);
+                    setDestQuery(loc.label);
+                    setDestResults([]);
+                  }}
+                  className={`text-[11px] px-2 py-0.5 rounded-full border transition cursor-pointer ${
+                    destination.label === loc.label
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {loc.label.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* TIME & DATE */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
@@ -433,8 +457,8 @@ const SearchRides = () => {
               key={ride._id}
               className="bg-white p-5 rounded-xl shadow-xs border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
             >
-              <div>
-                <div className="flex items-center gap-2 mb-2">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
                   <span className="font-bold text-lg text-slate-800">
                     {ride.driverId?.name || 'Driver'}
                   </span>
@@ -442,13 +466,33 @@ const SearchRides = () => {
                     {ride.vehicleId?.model || 'Vehicle'}
                   </span>
                 </div>
-                <div className="text-xs text-slate-600 space-y-1">
+
+                {/* MUTUAL RIDE BADGE */}
+                <div className="flex items-center gap-1.5 text-indigo-700 bg-indigo-50/80 border border-indigo-100 px-2 py-0.5 rounded-md text-[11px] font-semibold w-fit">
+                  <span>🤝</span>
+                  <span>
+                    {ride.mutualRideCount > 0
+                      ? `${ride.mutualRideCount} shared ${ride.mutualRideCount === 1 ? 'ride' : 'rides'} with driver`
+                      : '1st ride together'}
+                  </span>
+                </div>
+
+                <div className="text-xs text-slate-600 space-y-1 pt-1">
                   <p><strong>Departure:</strong> {ride.departureTime}</p>
                   <p><strong>Available Seats:</strong> {ride.availableSeats}</p>
                   <p><strong>Est. Share:</strong> ₹{ride.estimatedCostPerHead || ride.estimatedCost || 'TBD'}</p>
                   <p className="text-indigo-600 font-medium">
                     📍 Walk to boarding: ~{ride.boardingDistanceKm} km
                   </p>
+                </div>
+
+                <div className="pt-1">
+                  <Link
+                    to={`/rides/${ride._id}`}
+                    className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold underline"
+                  >
+                    View Trip Details →
+                  </Link>
                 </div>
               </div>
 
