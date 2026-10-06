@@ -51,7 +51,7 @@ export const topUpWallet = async (req, res, next) => {
     // 2. Record append-only audit trail in WalletLedger
     const ledgerEntry = await WalletLedger.create({
       userId: req.user._id,
-      bookingId: null, // null for direct topups (not tied to a booking)
+      bookingId: null,
       type: 'topup',
       amount: topUpAmount,
       balanceAfter: user.walletBalance,
@@ -59,6 +59,73 @@ export const topUpWallet = async (req, res, next) => {
 
     res.status(200).json({
       message: `Successfully added ₹${topUpAmount} via ${paymentMethod || 'UPI'}`,
+      walletBalance: user.walletBalance,
+      transaction: ledgerEntry,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Withdraw funds to Bank Account / UPI (Driver & Student Cashout)
+// @route   POST /api/wallet/withdraw
+// @access  Authenticated
+export const withdrawFunds = async (req, res, next) => {
+  try {
+    const { amount, method, upiId, bankDetails } = req.body;
+    const withdrawAmount = Number(amount);
+
+    if (!withdrawAmount || withdrawAmount <= 0) {
+      return res.status(400).json({ message: 'Please enter a valid positive withdrawal amount' });
+    }
+
+    if (withdrawAmount < 50) {
+      return res.status(400).json({ message: 'Minimum withdrawal amount is ₹50' });
+    }
+
+    // 1. Check user spendable balance
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.walletBalance < withdrawAmount) {
+      return res.status(400).json({
+        message: `Insufficient spendable balance. Available: ₹${user.walletBalance}, Requested: ₹${withdrawAmount}`,
+      });
+    }
+
+    // 2. Validate payout destination
+    if (method === 'upi' && !upiId) {
+      return res.status(400).json({ message: 'Please enter a valid UPI ID (e.g. driver@oksbi)' });
+    }
+
+    if (method === 'bank') {
+      if (!bankDetails?.accountNumber || !bankDetails?.ifsc) {
+        return res.status(400).json({ message: 'Account Number and IFSC code are required' });
+      }
+    }
+
+    // 3. Atomically decrement spendable balance
+    user.walletBalance -= withdrawAmount;
+    await user.save();
+
+    // 4. Append-only audit record in WalletLedger
+    const ledgerEntry = await WalletLedger.create({
+      userId: req.user._id,
+      bookingId: null,
+      type: 'withdrawal',
+      amount: withdrawAmount,
+      balanceAfter: user.walletBalance,
+    });
+
+    const destinationText = method === 'upi'
+      ? `UPI ID: ${upiId}`
+      : `Bank A/C ending in ...${String(bankDetails.accountNumber).slice(-4)} (IFSC: ${bankDetails.ifsc.toUpperCase()})`;
+
+    res.status(200).json({
+      success: true,
+      message: `Withdrawal of ₹${withdrawAmount} initiated to ${destinationText}`,
       walletBalance: user.walletBalance,
       transaction: ledgerEntry,
     });

@@ -27,7 +27,7 @@ export const startRosterLockJob = () => {
 
             for (const ride of ridesToLock) {
                 session.startTransaction();
-                try {
+                    try {
                     // 1. Fetch real confirmed bookings first to get TRUE passenger count
                     const bookings = await Booking.find({ 
                         rideId: ride._id, 
@@ -36,17 +36,38 @@ export const startRosterLockJob = () => {
 
                     const confirmedCount = bookings.length;
 
-                    // 2. Equal Split: total trip cost / (1 driver + confirmed passengers)
+                    // CASE A: No passengers booked before 9:00 PM lock
+                    if (confirmedCount === 0) {
+                        ride.status = 'cancelled';
+                        ride.costLocked = true;
+                        ride.costPerHeadFinal = 0;
+                        ride.confirmedRiderCount = 0;
+                        await ride.save({ session });
+
+                        await session.commitTransaction();
+
+                        sendNotification({
+                          userId: ride.driverId,
+                          type: 'ride_cancelled',
+                          message: `Roster locked: No passengers booked your ride to ${ride.destination?.label || 'campus'}. Trip closed.`,
+                          relatedRideId: ride._id,
+                        });
+
+                        console.log(`ℹ️ Ride ${ride._id} closed (0 bookings).`);
+                        continue;
+                    }
+
+                    // CASE B: 1 or more confirmed passengers -> Calculate true Equal Split
                     const totalTripCost = ride.estimatedCostPerHead * (1 + ride.totalSeats);
                     const costPerHeadFinal = Math.round(totalTripCost / (1 + confirmedCount));
 
-                    // 3. Freeze ride
+                    // Freeze ride
                     ride.costLocked = true;
                     ride.costPerHeadFinal = costPerHeadFinal;
                     ride.confirmedRiderCount = confirmedCount;
                     await ride.save({ session });
 
-                    // 4. Process Escrow Delta for all confirmed bookings
+                    // Process Escrow Delta for all confirmed bookings
                     for (const booking of bookings) {
                         const delta = costPerHeadFinal - booking.holdAmountProvisional;
                         
@@ -60,7 +81,7 @@ export const startRosterLockJob = () => {
 
                     await session.commitTransaction();
 
-                    // Notify Driver of locked roster
+                    // Notify Driver of locked roster with real count
                     sendNotification({
                       userId: ride.driverId,
                       type: 'booking_accepted',
@@ -78,7 +99,6 @@ export const startRosterLockJob = () => {
                       });
                     }
 
-                    
                     console.log(`✅ Locked Ride ${ride._id} | Final Cost: ₹${costPerHeadFinal} | Confirmed Riders: ${confirmedCount}`);
                 } catch (err) {
                     await session.abortTransaction();

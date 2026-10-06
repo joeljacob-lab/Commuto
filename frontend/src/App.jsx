@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext.jsx';
+import { AuthProvider, useAuth} from './context/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute';
 import DepartmentManagement from './pages/admin/DepartmentManagement';
 import Login from './pages/Login';
@@ -17,6 +17,8 @@ import ReportsQueue from './pages/admin/ReportsQueue.jsx';
 import Navbar from './components/Navbar';
 import MyBookings from './pages/MyBookings';
 import Profile from './pages/Profile';
+import RideDetails from './pages/RideDetails';
+import Dashboard from './pages/Dashboard';
 
 function PlaceholderHome() {
   return (
@@ -89,17 +91,25 @@ function NotFound() {
   );
 }
 
+function HomeOrDashboard() {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return null;
+  return isAuthenticated ? <Dashboard /> : <PlaceholderHome />;
+}
+
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Navbar />
         <Routes>
-          <Route path="/" element={<PlaceholderHome />} />
+          <Route path="/" element={<HomeOrDashboard />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/bookings" element={<ProtectedRoute><MyBookings /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/rides/:id" element={<ProtectedRoute><RideDetails /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
           {/* Admin routes */}
           <Route path="/admin/departments" element={<ProtectedRoute requiredRole="admin"><DepartmentManagement /></ProtectedRoute>} />

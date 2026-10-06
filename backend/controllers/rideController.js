@@ -104,16 +104,44 @@ export const createOneOffRide = async (req, res, next) => {
   }
 };
 
-// @desc    Get all rides offered by the logged-in driver
+// @desc    Get all rides offered by the logged-in driver with confirmed passengers
 // @route   GET /api/rides/my
 // @access  Driver only
 export const getMyDriverRides = async (req, res, next) => {
   try {
     const rides = await Ride.find({ driverId: req.user._id })
       .populate('vehicleId', 'model type seats mileageKmpl color')
-      .sort({ date: -1, departureTime: -1 });
-      console.log(`My driver rides:`, rides.map(r => r._id));
-    res.status(200).json({ rides });
+      .sort({ date: -1, departureTime: -1 })
+      .lean();
+
+    // Fetch confirmed/completed passengers for all driver rides
+    const rideIds = rides.map((r) => r._id);
+    const bookings = await Booking.find({
+      rideId: { $in: rideIds },
+      status: { $in: ['confirmed', 'completed'] },
+    })
+
+        .populate({
+        path: 'passengerId',
+        select: 'name email phone deptId year',
+        populate: { path: 'deptId', select: 'deptName programName' },
+      })
+
+    // Attach passenger roster to each ride
+    const ridesWithPassengers = rides.map((ride) => {
+      const rideBookings = bookings.filter((b) => String(b.rideId) === String(ride._id));
+      return {
+        ...ride,
+        passengers: rideBookings.map((b) => ({
+          bookingId: b._id,
+          status: b.status,
+          boardingPoint: b.boardingPoint,
+          passenger: b.passengerId, // { _id, name, phone, email, deptId, year }
+        })),
+      };
+    });
+
+    res.status(200).json({ rides: ridesWithPassengers });
   } catch (error) {
     next(error);
   }
@@ -245,11 +273,27 @@ export const completeRide = async (req, res, next) => {
       return res.status(400).json({ message: 'Cannot complete a cancelled ride' });
     }
 
-    // 2. Fetch confirmed bookings
+    // 2. Guard: Cannot complete before Roster Lock
+    if (!ride.costLocked) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        message: 'Cannot complete ride before 9:00 PM roster lock has finalized passenger fares.',
+      });
+    }
+
+    // 3. Fetch confirmed bookings
     const bookings = await Booking.find({
       rideId: ride._id,
       status: 'confirmed',
     }).session(session);
+
+    // Guard: Cannot payout if 0 passengers booked
+    if (bookings.length === 0) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        message: 'Cannot complete ride: No confirmed passengers booked on this trip (₹0 payout).',
+      });
+    }
 
     let totalPayout = 0;
 

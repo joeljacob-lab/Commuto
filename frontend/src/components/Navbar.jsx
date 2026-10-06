@@ -9,40 +9,20 @@ import {
   Plus, 
   LogOut, 
   Menu, 
-  X,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
-import { topUpWallet } from '../services/api';
+import MockPaymentGatewayModal from './MockPaymentGatewayModal';
 
 const Navbar = () => {
   const { user, isAuthenticated, logout, updateUser } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [topUpModalOpen, setTopUpModalOpen] = useState(false);
-  const [topUpAmount, setTopUpAmount] = useState('200');
-  const [topUpLoading, setTopUpLoading] = useState(false);
+  const [gatewayOpen, setGatewayOpen] = useState(false);
 
   const isDriver = user?.roles?.includes('driver');
   const isAdmin = user?.roles?.includes('admin');
-
-  const handleTopUp = async (e) => {
-    e.preventDefault();
-    const amount = Number(topUpAmount);
-    if (!amount || amount <= 0) return;
-
-    try {
-      setTopUpLoading(true);
-      const res = await topUpWallet({ amount, paymentMethod: 'UPI' });
-      // Update local wallet balance state
-      updateUser({ walletBalance: res.data.walletBalance });
-      setTopUpModalOpen(false);
-    } catch (error) {
-      alert(error.response?.data?.message || 'Top-up failed');
-    } finally {
-      setTopUpLoading(false);
-    }
-  };
 
   const isActive = (path) => location.pathname === path;
 
@@ -62,7 +42,6 @@ const Navbar = () => {
             {/* Desktop Navigation Links */}
             {isAuthenticated && (
               <nav className="hidden md:flex items-center space-x-1">
-                {/* Rider Links */}
                 <Link
                   to="/search-rides"
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
@@ -87,7 +66,6 @@ const Navbar = () => {
                   My Bookings
                 </Link>
 
-                {/* Driver Links */}
                 {isDriver && (
                   <>
                     <div className="h-4 w-px bg-slate-200 mx-1" />
@@ -115,7 +93,6 @@ const Navbar = () => {
                   </>
                 )}
 
-                {/* Admin Links */}
                 {isAdmin && (
                   <>
                     <div className="h-4 w-px bg-slate-200 mx-1" />
@@ -148,18 +125,16 @@ const Navbar = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setTopUpModalOpen(true)}
+                    onClick={() => setGatewayOpen(true)}
                     className="p-1 rounded-full bg-white hover:bg-indigo-50 text-indigo-600 shadow-2xs border border-slate-200 transition cursor-pointer"
-                    title="Top Up Wallet"
+                    title="Open Payment Gateway"
                   >
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
 
-                {/* Real-time Notification Bell */}
                 <NotificationBell />
 
-                {/* User Info & Logout (Desktop) */}
                 <div className="hidden sm:flex items-center pl-2 border-l border-slate-200 space-x-3">
                   <Link to="/profile" className="text-right hover:opacity-80 transition cursor-pointer" title="View Profile & Ledger">
                     <p className="text-xs font-bold text-slate-800 leading-tight">{user?.name}</p>
@@ -175,7 +150,6 @@ const Navbar = () => {
                   </button>
                 </div>
 
-                {/* Mobile Hamburger Toggle */}
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -238,13 +212,6 @@ const Navbar = () => {
                 >
                   🔁 Route Pools
                 </Link>
-                <Link
-                  to="/driver/rides/create-single"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block text-xs font-semibold text-slate-700 py-1.5"
-                >
-                  ➕ Publish Single Ride
-                </Link>
               </>
             )}
 
@@ -258,28 +225,21 @@ const Navbar = () => {
                 >
                   🛡️ Admin Dashboard
                 </Link>
-                <Link
-                  to="/admin/vehicles/pending"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block text-xs font-semibold text-slate-700 py-1.5"
-                >
-                  🚙 Vehicle Queue
-                </Link>
-                <Link
-                  to="/admin/reports"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block text-xs font-semibold text-slate-700 py-1.5"
-                >
-                  🚨 Safety Reports
-                </Link>
               </>
             )}
 
             <div className="h-px bg-slate-100 my-2" />
+            <Link
+              to="/profile"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block text-xs font-semibold text-slate-700 py-1.5"
+            >
+              👤 Profile &amp; Wallet Ledger
+            </Link>
             <button
               type="button"
               onClick={logout}
-              className="w-full text-left text-xs font-semibold text-rose-600 py-1.5"
+              className="w-full text-left text-xs font-semibold text-rose-600 py-1.5 cursor-pointer"
             >
               Log Out ({user?._id})
             </button>
@@ -287,67 +247,13 @@ const Navbar = () => {
         )}
       </header>
 
-      {/* Wallet Top-Up Modal */}
-      {topUpModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-2xs p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100">
-            <h3 className="text-base font-bold text-slate-900">Top Up Campus Escrow Wallet</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Add mock funds to hold seat fares and split trip costs.
-            </p>
-
-            <form onSubmit={handleTopUp} className="mt-4 space-y-4">
-              <div className="grid grid-cols-3 gap-2">
-                {['100', '200', '500'].map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setTopUpAmount(amt)}
-                    className={`py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${
-                      topUpAmount === amt
-                        ? 'bg-indigo-50 border-indigo-600 text-indigo-700'
-                        : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    ₹{amt}
-                  </button>
-                ))}
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  Custom Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  min="10"
-                  max="5000"
-                  value={topUpAmount}
-                  onChange={(e) => setTopUpAmount(e.target.value)}
-                  className="w-full text-sm font-bold bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setTopUpModalOpen(false)}
-                  className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={topUpLoading}
-                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs cursor-pointer"
-                >
-                  {topUpLoading ? 'Processing...' : `Add ₹${topUpAmount || 0}`}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Realistic Mock Gateway Modal */}
+      <MockPaymentGatewayModal
+        isOpen={gatewayOpen}
+        onClose={() => setGatewayOpen(false)}
+        initialAmount="200"
+        onSuccess={(newBal) => updateUser({ walletBalance: newBal })}
+      />
     </>
   );
 };

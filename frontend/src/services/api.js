@@ -75,6 +75,7 @@ export const searchRides = (params) => {
 // --- Wallet endpoints ---
 export const getMyWallet = () => api.get('/wallet/balance');
 export const topUpWallet = (data) => api.post('/wallet/topup', data);
+export const withdrawWallet = (data) => api.post('/wallet/withdraw', data);
 
 
 // --- Rides Actions ---

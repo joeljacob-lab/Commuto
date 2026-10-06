@@ -12,19 +12,25 @@ import {
   ArrowUpRight, 
   Clock, 
   RefreshCw,
-  Plus
+  Plus,
+  Landmark
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getMyWallet, getUserReviews, topUpWallet } from '../services/api';
+import { getMyWallet, getUserReviews } from '../services/api';
+import MockPaymentGatewayModal from '../components/MockPaymentGatewayModal';
+import WithdrawModal from '../components/WithdrawModal';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
   const [walletData, setWalletData] = useState({ walletBalance: 0, transactions: [] });
   const [reviewsData, setReviewsData] = useState({ averageRating: null, totalReviews: 0, reviews: [] });
   const [loading, setLoading] = useState(true);
-  const [topUpAmount, setTopUpAmount] = useState('200');
-  const [topUpLoading, setTopUpLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Modals
+  const [gatewayOpen, setGatewayOpen] = useState(false);
+  const [gatewayAmount, setGatewayAmount] = useState('200');
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
 
   useEffect(() => {
     if (!user?._id) return;
@@ -47,24 +53,11 @@ const Profile = () => {
     };
 
     loadProfileData();
-  }, [user?._id, refreshKey]);
+    }, [user?._id, user?.walletBalance, refreshKey]);
 
-  const handleTopUp = async (e) => {
-    e.preventDefault();
-    const amount = Number(topUpAmount);
-    if (!amount || amount <= 0) return;
-
-    try {
-      setTopUpLoading(true);
-      const res = await topUpWallet({ amount, paymentMethod: 'UPI' });
-      updateUser({ walletBalance: res.data.walletBalance });
-      setRefreshKey((k) => k + 1);
-      alert(`Successfully added ₹${amount} to your wallet!`);
-    } catch (error) {
-      alert(error.response?.data?.message || 'Top-up failed');
-    } finally {
-      setTopUpLoading(false);
-    }
+  const handleOpenGateway = (amt) => {
+    setGatewayAmount(amt);
+    setGatewayOpen(true);
   };
 
   const getLedgerBadge = (type) => {
@@ -79,6 +72,8 @@ const Profile = () => {
         return <span className="inline-flex items-center gap-1 text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[10px] font-bold"><ArrowDownLeft className="w-3 h-3" /> Hold Refunded</span>;
       case 'forfeit':
         return <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 px-2 py-0.5 rounded text-[10px] font-bold"><ArrowUpRight className="w-3 h-3" /> Forfeited</span>;
+      case 'withdrawal':
+        return <span className="inline-flex items-center gap-1 text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded text-[10px] font-bold"><ArrowUpRight className="w-3 h-3" /> Bank Payout</span>;
       default:
         return <span className="text-slate-600 bg-slate-50 px-2 py-0.5 rounded text-[10px] font-bold">{type}</span>;
     }
@@ -189,8 +184,8 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Wallet & Quick Top-Up Banner */}
-        <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 rounded-2xl p-6 text-white shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+        {/* Wallet & Gateway Actions Banner */}
+        <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 rounded-2xl p-6 text-white shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
             <span className="text-xs font-semibold text-indigo-200 uppercase tracking-wider block mb-1">
               Campus Escrow Balance
@@ -200,35 +195,44 @@ const Profile = () => {
               <span className="text-xs bg-indigo-700/80 px-2 py-0.5 rounded text-indigo-200">Spendable</span>
             </div>
             <p className="text-xs text-indigo-300 mt-1">
-              Funds are held safely per ride and released upon trip completion.
+              Held per seat reservation and paid out to drivers upon trip completion.
             </p>
           </div>
 
-          <form onSubmit={handleTopUp} className="flex items-center gap-2 bg-indigo-950/60 p-2 rounded-xl border border-indigo-700/50">
-            <span className="text-xs font-bold text-indigo-200 pl-2">Top Up:</span>
-            {['100', '200', '500'].map((amt) => (
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Quick Top-Up with Gateway */}
+            <div className="flex items-center gap-1.5 bg-indigo-950/60 p-1.5 rounded-xl border border-indigo-700/50">
+              <span className="text-xs font-bold text-indigo-200 pl-2">Top Up:</span>
+              {['100', '200', '500'].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => handleOpenGateway(amt)}
+                  className="px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-800/80 hover:bg-indigo-700 text-white transition cursor-pointer"
+                >
+                  ₹{amt}
+                </button>
+              ))}
               <button
-                key={amt}
                 type="button"
-                onClick={() => setTopUpAmount(amt)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  topUpAmount === amt
-                    ? 'bg-white text-indigo-900 shadow-xs'
-                    : 'bg-indigo-800/80 hover:bg-indigo-700 text-white'
-                }`}
+                onClick={() => handleOpenGateway('200')}
+                className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg shadow-xs transition cursor-pointer"
               >
-                ₹{amt}
+                <Plus className="w-3.5 h-3.5" />
+                Add Funds
               </button>
-            ))}
+            </div>
+
+            {/* Withdraw to Bank Button */}
             <button
-              type="submit"
-              disabled={topUpLoading}
-              className="inline-flex items-center gap-1 px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg shadow-xs transition cursor-pointer"
+              type="button"
+              onClick={() => setWithdrawOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5" />
-              {topUpLoading ? '...' : 'Add'}
+              <Landmark className="w-4 h-4 text-emerald-600" />
+              Cash Out to Bank
             </button>
-          </form>
+          </div>
         </div>
 
         {/* Append-Only Financial Audit Ledger */}
@@ -240,7 +244,7 @@ const Profile = () => {
                 Wallet Ledger Audit Trail
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Append-only log of all financial holds, releases, payouts, and top-ups
+                Append-only log of all financial holds, releases, payouts, withdrawals, and top-ups
               </p>
             </div>
             <span className="text-xs text-slate-400 font-mono">
@@ -294,6 +298,29 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {/* Mock Payment Gateway Modal */}
+      <MockPaymentGatewayModal
+        key={gatewayAmount}
+        isOpen={gatewayOpen}
+        onClose={() => setGatewayOpen(false)}
+        initialAmount={gatewayAmount}
+        onSuccess={(newBal) => {
+          updateUser({ walletBalance: newBal });
+          setRefreshKey((k) => k + 1);
+        }}
+      />
+
+      {/* Driver Cash Out Modal */}
+      <WithdrawModal
+        isOpen={withdrawOpen}
+        onClose={() => setWithdrawOpen(false)}
+        currentBalance={user?.walletBalance || 0}
+        onSuccess={(newBal) => {
+          updateUser({ walletBalance: newBal });
+          setRefreshKey((k) => k + 1);
+        }}
+      />
     </div>
   );
 };
