@@ -115,7 +115,7 @@ export const loginUser = async (req, res, next) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email: email.toLowerCase() }).populate('deptId');
     if (!user) {
       // Deliberately vague — don't reveal whether it was the email or
       // password that was wrong, standard practice against enumeration.

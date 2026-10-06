@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginUser } from '../services/api';
+import { Button } from '../components/ui/button';
+import { Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
+import commutoLogo from '../assets/Commuto_ emblem.png';
 
 function Login() {
   const navigate = useNavigate();
@@ -25,70 +28,96 @@ function Login() {
       login(data.user, data.token);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl p-8 shadow-xs">
-        <div className="text-center mb-6">
-          <div className="h-10 w-10 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xl mx-auto mb-3">
-            C
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Log in to Commuto</h1>
+    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12 relative selection:bg-accent selection:text-accent-foreground">
+      {/* Ambient background decoration */}
+      <div className="absolute inset-0 theme-glow-warm pointer-events-none" />
+      <div className="absolute inset-0 theme-dot-pattern opacity-50 pointer-events-none" />
+
+      <div className="w-full max-w-md bg-card border border-border rounded-[var(--radius)] p-8 shadow-xs relative z-10">
+        
+        {/* Brand Header */}
+        <div className="text-center mb-8">
+          <img
+            src={commutoLogo}
+            alt="Commuto Emblem"
+            className="h-12 w-12 object-contain mx-auto mb-3.5 drop-shadow-xs"
+          />
+          <h1 className="text-2xl font-serif font-bold text-foreground">
+            Sign In to Commuto
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            College-exclusive recurring transit &amp; cost-sharing platform
+          </p>
         </div>
 
         {error && (
-          <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
-            {error}
+          <div className="mb-5 text-xs text-destructive bg-secondary/80 border border-destructive/20 rounded-[var(--radius)] p-3 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-destructive mt-0.5" />
+            <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-            <input
-              type="email"
-              name="email"
-              required
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="you@college.edu"
-            />
+            <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+              College Email
+            </label>
+            <div className="relative">
+              <input
+                type="email"
+                name="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full bg-background border border-border rounded-[var(--radius)] px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring focus:border-ring transition"
+                placeholder="rollno@college.edu"
+              />
+              <Mail className="w-4 h-4 text-muted-foreground absolute right-3.5 top-3 pointer-events-none" />
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-            <input
-              type="password"
-              name="password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="••••••••"
-            />
+            <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+              Password
+            </label>
+            <div className="relative">
+              <input
+                type="password"
+                name="password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full bg-background border border-border rounded-[var(--radius)] px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring focus:border-ring transition"
+                placeholder="••••••••"
+              />
+              <Lock className="w-4 h-4 text-muted-foreground absolute right-3.5 top-3 pointer-events-none" />
+            </div>
           </div>
 
-          <button
+          <Button
             type="submit"
             disabled={submitting}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium py-2 rounded-md transition"
+            className="w-full mt-2 font-semibold shadow-xs"
+            size="lg"
           >
-            {submitting ? 'Logging in...' : 'Log In'}
-          </button>
+            {submitting ? 'Authenticating...' : 'Sign In '}
+          </Button>
         </form>
 
-        <p className="text-center text-sm text-slate-600 mt-6">
-          Don&apos;t have an account?{' '}
-          <Link to="/register" className="text-indigo-600 font-medium hover:underline">
-            Register
+        <div className="mt-6 pt-6 border-t border-border text-center text-xs text-muted-foreground">
+          Don&apos;t have an account yet?{' '}
+          <Link to="/register" className="text-primary font-semibold hover:underline inline-flex items-center gap-1">
+            Register here <ArrowRight className="w-3 h-3" />
           </Link>
-        </p>
+        </div>
+
       </div>
     </div>
   );

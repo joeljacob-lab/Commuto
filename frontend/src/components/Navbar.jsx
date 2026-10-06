@@ -1,10 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  Car, 
-  Search, 
-  Ticket, 
-  ShieldAlert, 
   Wallet, 
   Plus, 
   LogOut, 
@@ -14,6 +10,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import MockPaymentGatewayModal from './MockPaymentGatewayModal';
+import commutoLogo from '../assets/Commuto_ emblem.png';
 
 const Navbar = () => {
   const { user, isAuthenticated, logout, updateUser } = useAuth();
@@ -24,228 +21,311 @@ const Navbar = () => {
   const isDriver = user?.roles?.includes('driver');
   const isAdmin = user?.roles?.includes('admin');
 
-  const isActive = (path) => location.pathname === path;
+  // Check if current route is one of the 4 public entry/auth pages
+  const isAuthOrLandingPage = 
+    (!isAuthenticated && location.pathname === '/') || // Unauthenticated landing/hero page
+    location.pathname === '/login' ||
+    location.pathname === '/register';
+
+  const isActive = (path) => {
+    if (path === '/' || path === '/dashboard') {
+      return location.pathname === '/' || location.pathname === '/dashboard';
+    }
+    return location.pathname.startsWith(path);
+  };
 
   return (
     <>
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Logo & Platform Tag */}
-          <div className="flex items-center space-x-6">
-            <Link to="/" className="flex items-center space-x-2.5">
-              <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-xl shadow-xs">
-                C
-              </div>
-              <span className="font-extrabold text-xl tracking-tight text-slate-900">Commuto</span>
-            </Link>
+      {/* Floating Pill Navigation Wrapper */}
+      <div className="sticky top-0 z-50 w-full px-4 sm:px-6 pt-3 sm:pt-4 pointer-events-none">
+        <header className="max-w-5xl mx-auto flex items-center justify-between pointer-events-auto">
+          
+          {/* Left Brand Capsule */}
+          <Link
+            to="/"
+            className="flex items-center gap-2.5 bg-card/90 backdrop-blur-md border border-border/80 px-3.5 py-1.5 rounded-full shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06)] hover:shadow-md hover:border-primary/40 transition-all group shrink-0"
+          >
+            <img
+              src={commutoLogo}
+              alt="Commuto"
+              className="h-7 w-7 object-contain rounded-full group-hover:scale-105 transition-transform"
+            />
+            <span className="font-serif font-extrabold text-base tracking-tight text-foreground pr-1">
+              Commuto
+            </span>
+          </Link>
 
-            {/* Desktop Navigation Links */}
-            {isAuthenticated && (
-              <nav className="hidden md:flex items-center space-x-1">
-                <Link
-                  to="/search-rides"
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
-                    isActive('/search-rides')
-                      ? 'bg-indigo-50 text-indigo-700'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  <Search className="w-3.5 h-3.5" />
-                  Find Rides
-                </Link>
+          {/* Center Floating Pill Nav: Rendered ONLY on internal pages (hidden on Landing, Login, Register) */}
+          {!isAuthOrLandingPage && (
+            <nav className="hidden md:flex items-center relative bg-card/90 backdrop-blur-md border border-border/80 rounded-full p-1.5 shadow-[0_4px_24px_-2px_rgba(0,0,0,0.08)]">
+              {/* Home / Cockpit Dashboard */}
+              <Link
+                to="/"
+                className={`relative px-4 py-2 rounded-full text-xs font-medium transition-all ${
+                  isActive('/')
+                    ? 'bg-muted text-foreground font-semibold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {isActive('/') && (
+                  <>
+                    <div className="absolute -top-[9px] left-1/2 -translate-x-1/2 w-8 h-[3px] bg-foreground rounded-full shadow-[0_-2px_10px_1px_rgba(0,0,0,0.4)]" />
+                    <div className="absolute -top-[12px] left-1/2 -translate-x-1/2 w-6 h-[8px] bg-foreground/20 blur-xs rounded-full pointer-events-none" />
+                  </>
+                )}
+                Home
+              </Link>
 
+              {/* Find Rides */}
+              <Link
+                to="/search-rides"
+                className={`relative px-4 py-2 rounded-full text-xs font-medium transition-all ${
+                  isActive('/search-rides')
+                    ? 'bg-muted text-foreground font-semibold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {isActive('/search-rides') && (
+                  <>
+                    <div className="absolute -top-[9px] left-1/2 -translate-x-1/2 w-8 h-[3px] bg-foreground rounded-full shadow-[0_-2px_10px_1px_rgba(0,0,0,0.4)]" />
+                    <div className="absolute -top-[12px] left-1/2 -translate-x-1/2 w-6 h-[8px] bg-foreground/20 blur-xs rounded-full pointer-events-none" />
+                  </>
+                )}
+                Find Rides
+              </Link>
+
+              {/* My Bookings */}
+              {isAuthenticated && (
                 <Link
                   to="/bookings"
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
+                  className={`relative px-4 py-2 rounded-full text-xs font-medium transition-all ${
                     isActive('/bookings')
-                      ? 'bg-indigo-50 text-indigo-700'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      ? 'bg-muted text-foreground font-semibold shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <Ticket className="w-3.5 h-3.5" />
+                  {isActive('/bookings') && (
+                    <>
+                      <div className="absolute -top-[9px] left-1/2 -translate-x-1/2 w-8 h-[3px] bg-foreground rounded-full shadow-[0_-2px_10px_1px_rgba(0,0,0,0.4)]" />
+                      <div className="absolute -top-[12px] left-1/2 -translate-x-1/2 w-6 h-[8px] bg-foreground/20 blur-xs rounded-full pointer-events-none" />
+                    </>
+                  )}
                   My Bookings
                 </Link>
+              )}
 
-                {isDriver && (
-                  <>
-                    <div className="h-4 w-px bg-slate-200 mx-1" />
-                    <Link
-                      to="/driver/rides"
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
-                        isActive('/driver/rides')
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Car className="w-3.5 h-3.5 text-emerald-600" />
-                      Driver Hub
-                    </Link>
-                    <Link
-                      to="/driver/routepools"
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                        isActive('/driver/routepools')
-                          ? 'bg-slate-100 text-slate-900'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                      }`}
-                    >
-                      Route Pools
-                    </Link>
-                  </>
-                )}
+              {/* Driver Hub */}
+              {isAuthenticated && isDriver && (
+                <Link
+                  to="/driver/rides"
+                  className={`relative px-4 py-2 rounded-full text-xs font-medium transition-all ${
+                    isActive('/driver')
+                      ? 'bg-muted text-foreground font-semibold shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {isActive('/driver') && (
+                    <>
+                      <div className="absolute -top-[9px] left-1/2 -translate-x-1/2 w-8 h-[3px] bg-foreground rounded-full shadow-[0_-2px_10px_1px_rgba(0,0,0,0.4)]" />
+                      <div className="absolute -top-[12px] left-1/2 -translate-x-1/2 w-6 h-[8px] bg-foreground/20 blur-xs rounded-full pointer-events-none" />
+                    </>
+                  )}
+                  Driver Hub
+                </Link>
+              )}
 
-                {isAdmin && (
-                  <>
-                    <div className="h-4 w-px bg-slate-200 mx-1" />
-                    <Link
-                      to="/admin/dashboard"
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
-                        isActive('/admin/dashboard')
-                          ? 'bg-purple-50 text-purple-700'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                      }`}
-                    >
-                      <ShieldAlert className="w-3.5 h-3.5 text-purple-600" />
-                      Admin Center
-                    </Link>
-                  </>
-                )}
-              </nav>
-            )}
-          </div>
+              {/* Admin Center */}
+              {isAuthenticated && isAdmin && (
+                <Link
+                  to="/admin/dashboard"
+                  className={`relative px-4 py-2 rounded-full text-xs font-medium transition-all ${
+                    isActive('/admin')
+                      ? 'bg-muted text-foreground font-semibold shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {isActive('/admin') && (
+                    <>
+                      <div className="absolute -top-[9px] left-1/2 -translate-x-1/2 w-8 h-[3px] bg-foreground rounded-full shadow-[0_-2px_10px_1px_rgba(0,0,0,0.4)]" />
+                      <div className="absolute -top-[12px] left-1/2 -translate-x-1/2 w-6 h-[8px] bg-foreground/20 blur-xs rounded-full pointer-events-none" />
+                    </>
+                  )}
+                  Admin
+                </Link>
+              )}
+            </nav>
+          )}
 
-          {/* Right Area: Wallet, Notification Bell, User Profile, Mobile Menu */}
-          <div className="flex items-center space-x-3">
+          {/* Right Action Controls Capsule */}
+          <div className="flex items-center gap-2">
             {isAuthenticated ? (
-              <>
-                {/* Wallet Balance Chip */}
-                <div className="flex items-center bg-slate-100 border border-slate-200 rounded-full pl-3 pr-1.5 py-1 text-xs">
-                  <div className="flex items-center gap-1 text-slate-700 font-bold mr-2">
-                    <Wallet className="w-3.5 h-3.5 text-slate-500" />
-                    <span>₹{user?.walletBalance ?? 0}</span>
-                  </div>
+              <div className="flex items-center gap-1.5 bg-card/90 backdrop-blur-md border border-border/80 px-2.5 py-1.5 rounded-full shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06)]">
+                {/* Wallet Balance Pill */}
+                <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-foreground pl-1.5 pr-1">
+                  <Wallet className="w-3.5 h-3.5 text-primary" />
+                  <span>₹{user?.walletBalance ?? 0}</span>
                   <button
                     type="button"
                     onClick={() => setGatewayOpen(true)}
-                    className="p-1 rounded-full bg-white hover:bg-indigo-50 text-indigo-600 shadow-2xs border border-slate-200 transition cursor-pointer"
-                    title="Open Payment Gateway"
+                    className="p-1 rounded-full bg-primary hover:bg-[#832323] text-primary-foreground transition cursor-pointer ml-0.5"
+                    title="Top Up Escrow Wallet"
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-2.5 h-2.5" />
                   </button>
                 </div>
 
+                <div className="h-3.5 w-px bg-border/80 mx-0.5" />
+
+                {/* Notifications */}
                 <NotificationBell />
 
-                <div className="hidden sm:flex items-center pl-2 border-l border-slate-200 space-x-3">
-                  <Link to="/profile" className="text-right hover:opacity-80 transition cursor-pointer" title="View Profile & Ledger">
-                    <p className="text-xs font-bold text-slate-800 leading-tight">{user?.name}</p>
-                    <p className="text-[10px] text-indigo-600 font-mono font-semibold">{user?._id}</p>
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={logout}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                    title="Log Out"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                </div>
+                <div className="h-3.5 w-px bg-border/80 mx-0.5" />
 
+                {/* Profile Link */}
+                <Link
+                  to="/profile"
+                  className="px-2 py-0.5 rounded-full text-xs font-medium text-foreground hover:bg-muted transition"
+                  title="Profile & Ledger"
+                >
+                  <span className="font-semibold">{user?.name?.split(' ')[0]}</span>
+                </Link>
+
+                {/* Log Out Button */}
                 <button
                   type="button"
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className="md:hidden p-1.5 rounded-lg text-slate-600 hover:bg-slate-100"
+                  onClick={logout}
+                  className="p-1.5 rounded-full text-muted-foreground hover:text-destructive hover:bg-muted transition cursor-pointer"
+                  title="Log Out"
                 >
-                  {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                  <LogOut className="w-3.5 h-3.5" />
                 </button>
-              </>
+              </div>
             ) : (
-              <div className="flex items-center space-x-2">
+              /* Public / Auth Pages: Only Login and Register Buttons */
+              <div className="flex items-center gap-1.5 bg-card/90 backdrop-blur-md border border-border/80 p-1.5 rounded-full shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06)]">
                 <Link
                   to="/login"
-                  className="text-xs font-semibold text-slate-700 hover:text-indigo-600 px-3 py-1.5"
+                  className={`px-3.5 py-1.5 text-xs font-medium rounded-full transition ${
+                    location.pathname === '/login'
+                      ? 'bg-muted text-foreground font-semibold'
+                      : 'text-foreground hover:text-primary'
+                  }`}
                 >
                   Log In
                 </Link>
                 <Link
                   to="/register"
-                  className="text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg transition"
+                  className="px-3.5 py-1.5 text-xs font-semibold bg-primary hover:bg-[#832323] text-primary-foreground rounded-full transition shadow-2xs"
                 >
                   Register
                 </Link>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Mobile Navigation Drawer */}
-        {isAuthenticated && mobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-2">
+            {/* Mobile Hamburger Button: Display only when nav items exist */}
+            {!isAuthOrLandingPage && (
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-full bg-card/90 backdrop-blur-md border border-border/80 text-foreground shadow-xs cursor-pointer hover:bg-muted"
+              >
+                {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              </button>
+            )}
+          </div>
+
+        </header>
+
+        {/* Mobile Navigation Drawer for Internal Pages */}
+        {!isAuthOrLandingPage && mobileMenuOpen && (
+          <div className="md:hidden mt-2 max-w-md mx-auto pointer-events-auto bg-card border border-border/80 rounded-2xl p-4 shadow-xl space-y-2 backdrop-blur-md">
+            <Link
+              to="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`block text-xs font-semibold py-2 px-3 rounded-lg ${
+                isActive('/') ? 'bg-secondary text-primary' : 'text-foreground'
+              }`}
+            >
+              🏠 Home
+            </Link>
             <Link
               to="/search-rides"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-xs font-semibold text-slate-700 py-1.5"
+              className={`block text-xs font-semibold py-2 px-3 rounded-lg ${
+                isActive('/search-rides') ? 'bg-secondary text-primary' : 'text-foreground'
+              }`}
             >
               🔍 Find Rides
             </Link>
-            <Link
-              to="/bookings"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block text-xs font-semibold text-slate-700 py-1.5"
-            >
-              🎟️ My Bookings
-            </Link>
 
-            {isDriver && (
+            {isAuthenticated && (
               <>
-                <div className="h-px bg-slate-100 my-1" />
                 <Link
-                  to="/driver/rides"
+                  to="/bookings"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block text-xs font-semibold text-emerald-700 py-1.5"
+                  className={`block text-xs font-semibold py-2 px-3 rounded-lg ${
+                    isActive('/bookings') ? 'bg-secondary text-primary' : 'text-foreground'
+                  }`}
                 >
-                  🚗 Driver Hub (My Rides)
+                  🎟️ My Bookings
                 </Link>
+
+                {isDriver && (
+                  <>
+                    <Link
+                      to="/driver/rides"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`block text-xs font-semibold py-2 px-3 rounded-lg ${
+                        isActive('/driver/rides') ? 'bg-secondary text-primary' : 'text-primary'
+                      }`}
+                    >
+                      🚗 Driver Hub (My Rides)
+                    </Link>
+                    <Link
+                      to="/driver/routepools"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block text-xs font-semibold py-2 px-3 rounded-lg text-foreground"
+                    >
+                      🔁 Route Pools
+                    </Link>
+                  </>
+                )}
+
+                {isAdmin && (
+                  <Link
+                    to="/admin/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block text-xs font-semibold py-2 px-3 rounded-lg text-primary"
+                  >
+                    🛡️ Admin Command Center
+                  </Link>
+                )}
+
+                <div className="h-px bg-border my-2" />
+
                 <Link
-                  to="/driver/routepools"
+                  to="/profile"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block text-xs font-semibold text-slate-700 py-1.5"
+                  className="block text-xs font-semibold py-2 px-3 rounded-lg text-foreground"
                 >
-                  🔁 Route Pools
+                  👤 Profile &amp; Wallet Ledger (₹{user?.walletBalance ?? 0})
                 </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left text-xs font-semibold text-destructive py-2 px-3 rounded-lg hover:bg-muted cursor-pointer"
+                >
+                  Log Out ({user?._id})
+                </button>
               </>
             )}
-
-            {isAdmin && (
-              <>
-                <div className="h-px bg-slate-100 my-1" />
-                <Link
-                  to="/admin/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block text-xs font-semibold text-purple-700 py-1.5"
-                >
-                  🛡️ Admin Dashboard
-                </Link>
-              </>
-            )}
-
-            <div className="h-px bg-slate-100 my-2" />
-            <Link
-              to="/profile"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block text-xs font-semibold text-slate-700 py-1.5"
-            >
-              👤 Profile &amp; Wallet Ledger
-            </Link>
-            <button
-              type="button"
-              onClick={logout}
-              className="w-full text-left text-xs font-semibold text-rose-600 py-1.5 cursor-pointer"
-            >
-              Log Out ({user?._id})
-            </button>
           </div>
         )}
-      </header>
+      </div>
 
       {/* Realistic Mock Gateway Modal */}
       <MockPaymentGatewayModal

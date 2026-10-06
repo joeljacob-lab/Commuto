@@ -12,6 +12,7 @@ import {
   Sparkles 
 } from 'lucide-react';
 import { topUpWallet } from '../services/api';
+import commutoLogo from '../assets/Commuto_ emblem.png';
 
 const MockPaymentGatewayModal = ({ isOpen, onClose, initialAmount = '200', onSuccess }) => {
   const [amount, setAmount] = useState(initialAmount);
@@ -102,9 +103,11 @@ const handleClose = () => {
         {/* Gateway Brand Header */}
         <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-sm">
-              C
-            </div>
+            <img
+              src={commutoLogo}
+              alt="Commuto Pay"
+              className="w-8 h-8 rounded-lg object-contain bg-white/10 p-0.5"
+            />
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-sm tracking-tight">Commuto Pay</span>

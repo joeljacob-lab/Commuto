@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { searchRides, createBooking } from '../services/api.js';
 import { useNavigate, Link } from 'react-router-dom';
+import { 
+  MapPin, 
+  Navigation, 
+  ArrowRight
+} from 'lucide-react';
+import { Button } from '../components/ui/button';
 
 const POPULAR_LOCATIONS = [
   { label: 'Campus Main Gate', coordinates: [76.3284, 10.0438] },
@@ -62,28 +68,29 @@ const SearchRides = () => {
     }
   };
 
-  // Debounced nominatim autocomplete for origin
+  // Debounced Origin Geocoding
   useEffect(() => {
     if (!originQuery || originQuery.length < 3) return;
 
     const timer = setTimeout(async () => {
       setSearchingOrigin(true);
       try {
+        const presets = POPULAR_LOCATIONS.filter((l) =>
+          l.label.toLowerCase().includes(originQuery.toLowerCase())
+        ).map((p) => ({
+          display_name: `${p.label} (Campus Preset)`,
+          lon: p.coordinates[0],
+          lat: p.coordinates[1],
+          isPreset: true,
+        }));
+
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
             originQuery
-          )}&countrycodes=in&limit=4`
+          )}&countrycodes=in&limit=4`,
+          { headers: { 'Accept-Language': 'en' } }
         );
         const data = await res.json();
-
-        const presets = POPULAR_LOCATIONS.filter((loc) =>
-          loc.label.toLowerCase().includes(originQuery.toLowerCase())
-        ).map((loc) => ({
-          display_name: `${loc.label} (Campus Preset)`,
-          lat: loc.coordinates[1],
-          lon: loc.coordinates[0],
-          isPreset: true,
-        }));
 
         setOriginResults([...presets, ...data]);
       } catch (err) {
@@ -96,28 +103,29 @@ const SearchRides = () => {
     return () => clearTimeout(timer);
   }, [originQuery]);
 
-  // Debounced nominatim autocomplete for destination
+  // Debounced Destination Geocoding
   useEffect(() => {
     if (!destQuery || destQuery.length < 3) return;
 
     const timer = setTimeout(async () => {
       setSearchingDest(true);
       try {
+        const presets = POPULAR_LOCATIONS.filter((l) =>
+          l.label.toLowerCase().includes(destQuery.toLowerCase())
+        ).map((p) => ({
+          display_name: `${p.label} (Campus Preset)`,
+          lon: p.coordinates[0],
+          lat: p.coordinates[1],
+          isPreset: true,
+        }));
+
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
             destQuery
-          )}&countrycodes=in&limit=4`
+          )}&countrycodes=in&limit=4`,
+          { headers: { 'Accept-Language': 'en' } }
         );
         const data = await res.json();
-
-        const presets = POPULAR_LOCATIONS.filter((loc) =>
-          loc.label.toLowerCase().includes(destQuery.toLowerCase())
-        ).map((loc) => ({
-          display_name: `${loc.label} (Campus Preset)`,
-          lat: loc.coordinates[1],
-          lon: loc.coordinates[0],
-          isPreset: true,
-        }));
 
         setDestResults([...presets, ...data]);
       } catch (err) {
@@ -177,15 +185,9 @@ const SearchRides = () => {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
+    setIsLoading(true);
     setSearchAttempted(true);
-
-    if (!origin.coordinates || !destination.coordinates) {
-      setError('Please select valid origin and destination locations from the suggestions.');
-      setIsLoading(false);
-      return;
-    }
 
     try {
       const response = await searchRides({
@@ -234,285 +236,319 @@ const SearchRides = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Find a Carpool Match</h1>
-        <p className="text-slate-500 text-sm">
-          Deterministic corridor matching with transparent escrow cost sharing.
-        </p>
-      </div>
+    <div className="min-h-screen bg-background py-10 px-4 sm:px-6 lg:px-8 relative selection:bg-accent selection:text-accent-foreground">
+      {/* Subtle Dot Pattern */}
+      <div className="absolute inset-0 theme-dot-pattern opacity-40 pointer-events-none" />
 
-      <form onSubmit={handleSearch} className="bg-white p-5 rounded-xl shadow-xs border border-slate-200 space-y-4">
-        {/* ORIGIN BOX */}
-        <div className="relative space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
-              Origin / Pickup Location
-            </label>
-            <button
-              type="button"
-              onClick={handleUseCurrentLocation}
-              className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium underline flex items-center gap-1 cursor-pointer"
-            >
-              📍 Use Current Location
-            </button>
-          </div>
+      <div className="max-w-4xl mx-auto space-y-8 relative z-10">
+        
+        {/* Header */}
+        <div>
+          <span className="text-xs uppercase font-mono font-bold tracking-wider text-primary bg-secondary px-3 py-1 rounded-full border border-border">
+            Corridor Overlap &amp; Match Engine
+          </span>
+          <h1 className="text-3xl font-serif font-bold text-foreground mt-3 tracking-tight">
+            Find Your Campus Corridor Match
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Deterministic route scoring with transparent Equal Split cost sharing and automated escrow.
+          </p>
+        </div>
 
-          <input
-            type="text"
-            required
-            className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            placeholder="Search pickup point, metro, or landmark..."
-            value={originQuery}
-            onChange={(e) => handleOriginChange(e.target.value)}
-          />
-
-          {searchingOrigin && (
-            <span className="text-[10px] text-slate-400 absolute right-2 top-8">
-              Searching...
-            </span>
-          )}
-
-          {/* Suggestions Dropdown */}
-          {originResults.length > 0 && (
-            <ul className="absolute z-10 w-full bg-white border border-slate-200 rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto">
-              {originResults.map((item, idx) => (
-                <li
-                  key={idx}
-                  onClick={() => handleSelectOrigin(item)}
-                  className="p-2 text-xs hover:bg-indigo-50 cursor-pointer border-b border-slate-100 flex items-center justify-between"
-                >
-                  <span className="truncate">{item.display_name}</span>
-                  {item.isPreset && (
-                    <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded ml-1 font-bold">
-                      Preset
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Selected Badge */}
-          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
-            <span className="inline-block w-2 h-2 rounded-full bg-indigo-500"></span>
-            <span>Selected: <strong className="text-slate-700">{origin.label}</strong></span>
-          </div>
-
-          {/* Presets */}
-          <div className="pt-2 border-t border-slate-200">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Quick Presets</span>
-            <div className="flex flex-wrap gap-1">
-              {POPULAR_LOCATIONS.map((loc) => (
+        {/* Search Form Card */}
+        <form onSubmit={handleSearch} className="bg-card p-6 sm:p-8 rounded-[var(--radius)] shadow-xs border border-border space-y-6">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* ORIGIN BOX */}
+            <div className="space-y-2 relative">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-foreground">
+                  Pickup Location
+                </label>
                 <button
                   type="button"
-                  key={loc.label}
-                  onClick={() => {
-                    setOrigin(loc);
-                    setOriginQuery(loc.label);
-                    setOriginResults([]);
-                  }}
-                  className={`text-[11px] px-2 py-0.5 rounded-full border transition cursor-pointer ${
-                    origin.label === loc.label
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
+                  onClick={handleUseCurrentLocation}
+                  className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
                 >
-                  {loc.label.split(' ')[0]}
+                  <Navigation className="w-3 h-3" />
+                  <span>Use GPS Location</span>
                 </button>
-              ))}
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  className="w-full bg-background border border-border rounded-[var(--radius)] px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring focus:border-ring transition"
+                  placeholder="Search boarding point..."
+                  value={originQuery}
+                  onChange={(e) => handleOriginChange(e.target.value)}
+                />
+                <MapPin className="w-4 h-4 text-muted-foreground absolute right-3.5 top-3 pointer-events-none" />
+              </div>
+
+              {searchingOrigin && (
+                <span className="text-[10px] text-muted-foreground absolute right-3 top-9">
+                  Searching...
+                </span>
+              )}
+
+              {/* Suggestions Dropdown */}
+              {originResults.length > 0 && (
+                <ul className="absolute z-20 w-full bg-card border border-border rounded-[var(--radius)] mt-1 shadow-lg max-h-48 overflow-y-auto">
+                  {originResults.map((item, idx) => (
+                    <li
+                      key={idx}
+                      onClick={() => handleSelectOrigin(item)}
+                      className="p-2.5 text-xs hover:bg-secondary cursor-pointer border-b border-border/50 flex items-center justify-between transition"
+                    >
+                      <span className="truncate text-foreground">{item.display_name}</span>
+                      {item.isPreset && (
+                        <span className="text-[9px] bg-secondary text-primary px-1.5 py-0.5 rounded font-bold border border-border">
+                          Preset
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Quick Presets */}
+              <div className="pt-2">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-1.5">Campus Presets</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {POPULAR_LOCATIONS.map((loc) => (
+                    <button
+                      type="button"
+                      key={loc.label}
+                      onClick={() => {
+                        setOrigin(loc);
+                        setOriginQuery(loc.label);
+                        setOriginResults([]);
+                      }}
+                      className={`text-[11px] px-2.5 py-1 rounded-[var(--radius)] border transition cursor-pointer ${
+                        origin.label === loc.label
+                          ? 'bg-primary text-primary-foreground border-primary font-medium'
+                          : 'bg-background text-foreground border-border hover:bg-muted'
+                      }`}
+                    >
+                      {loc.label.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* DESTINATION BOX */}
+            <div className="space-y-2 relative">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-foreground">
+                Destination / Drop-off
+              </label>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  className="w-full bg-background border border-border rounded-[var(--radius)] px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring focus:border-ring transition"
+                  placeholder="Search destination or campus gate..."
+                  value={destQuery}
+                  onChange={(e) => handleDestChange(e.target.value)}
+                />
+                <MapPin className="w-4 h-4 text-primary absolute right-3.5 top-3 pointer-events-none" />
+              </div>
+
+              {searchingDest && (
+                <span className="text-[10px] text-muted-foreground absolute right-3 top-9">
+                  Searching...
+                </span>
+              )}
+
+              {/* Suggestions Dropdown */}
+              {destResults.length > 0 && (
+                <ul className="absolute z-20 w-full bg-card border border-border rounded-[var(--radius)] mt-1 shadow-lg max-h-48 overflow-y-auto">
+                  {destResults.map((item, idx) => (
+                    <li
+                      key={idx}
+                      onClick={() => handleSelectDest(item)}
+                      className="p-2.5 text-xs hover:bg-secondary cursor-pointer border-b border-border/50 flex items-center justify-between transition"
+                    >
+                      <span className="truncate text-foreground">{item.display_name}</span>
+                      {item.isPreset && (
+                        <span className="text-[9px] bg-secondary text-primary px-1.5 py-0.5 rounded font-bold border border-border">
+                          Preset
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Quick Presets */}
+              <div className="pt-2">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-1.5">Campus Presets</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {POPULAR_LOCATIONS.map((loc) => (
+                    <button
+                      type="button"
+                      key={loc.label}
+                      onClick={() => {
+                        setDestination(loc);
+                        setDestQuery(loc.label);
+                        setDestResults([]);
+                      }}
+                      className={`text-[11px] px-2.5 py-1 rounded-[var(--radius)] border transition cursor-pointer ${
+                        destination.label === loc.label
+                          ? 'bg-primary text-primary-foreground border-primary font-medium'
+                          : 'bg-background text-foreground border-border hover:bg-muted'
+                      }`}
+                    >
+                      {loc.label.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* TIME & DATE */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-foreground mb-1.5">
+                Commute Date
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  required
+                  className="w-full bg-background border border-border rounded-[var(--radius)] px-3.5 py-2 text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-ring focus:border-ring transition"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-foreground mb-1.5">
+                Target Departure Time
+              </label>
+              <div className="relative">
+                <input
+                  type="time"
+                  required
+                  className="w-full bg-background border border-border rounded-[var(--radius)] px-3.5 py-2 text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-ring focus:border-ring transition"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* DESTINATION BOX */}
-        <div className="relative space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
-            Destination / Drop-off
-          </label>
-
-          <input
-            type="text"
-            required
-            className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            placeholder="Search destination or college gate..."
-            value={destQuery}
-            onChange={(e) => handleDestChange(e.target.value)}
-          />
-
-          {searchingDest && (
-            <span className="text-[10px] text-slate-400 absolute right-2 top-8">
-              Searching...
-            </span>
+          {error && (
+            <p className="text-destructive text-xs bg-secondary/80 p-3 rounded-[var(--radius)] border border-destructive/20 font-medium">
+              {error}
+            </p>
           )}
 
-          {/* Suggestions Dropdown */}
-          {destResults.length > 0 && (
-            <ul className="absolute z-10 w-full bg-white border border-slate-200 rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto">
-              {destResults.map((item, idx) => (
-                <li
-                  key={idx}
-                  onClick={() => handleSelectDest(item)}
-                  className="p-2 text-xs hover:bg-indigo-50 cursor-pointer border-b border-slate-100 flex items-center justify-between"
-                >
-                  <span className="truncate">{item.display_name}</span>
-                  {item.isPreset && (
-                    <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded ml-1 font-bold">
-                      Preset
+          <Button
+            type="submit"
+            disabled={isLoading}
+            size="lg"
+            className="w-full font-semibold shadow-xs"
+          >
+            {isLoading ? 'Calculating Corridor Overlaps...' : 'Find Matching Campus Rides'}
+          </Button>
+        </form>
+
+        {/* RESULTS DISPLAY */}
+        <div>
+          <h2 className="text-xl font-serif font-bold mb-4 text-foreground flex items-center justify-between">
+            <span>Viable Corridor Matches</span>
+            {searchAttempted && !isLoading && (
+              <span className="text-xs font-mono font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-[var(--radius)] border border-border">
+                {results.length} found
+              </span>
+            )}
+          </h2>
+
+          {isLoading && (
+            <div className="bg-card p-8 rounded-[var(--radius)] border border-border text-center text-sm text-muted-foreground">
+              Evaluating polyline forward vectors and walking radii...
+            </div>
+          )}
+
+          {!isLoading && searchAttempted && results.length === 0 && !error && (
+            <div className="bg-card text-muted-foreground p-8 rounded-[var(--radius)] text-center text-sm border border-border space-y-2">
+              <p className="font-semibold text-foreground">No viable rides found along this corridor.</p>
+              <p className="text-xs">Try widening your preferred departure time or choosing a neighboring campus preset.</p>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {results.map((ride) => (
+              <div
+                key={ride._id}
+                className="bg-card p-6 rounded-[var(--radius)] shadow-xs border border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 hover:border-primary/50 transition-colors"
+              >
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-serif font-bold text-lg text-foreground">
+                      {ride.driverId?.name || 'Driver'}
                     </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+                    <span className="bg-secondary text-primary text-xs px-2.5 py-0.5 rounded-[var(--radius)] font-mono font-bold border border-border">
+                      {ride.vehicleId?.model || 'Vehicle'}
+                    </span>
+                  </div>
 
-          {/* Selected Badge */}
-          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>Selected: <strong className="text-slate-700">{destination.label}</strong></span>
-          </div>
+                  {/* Trust Edge Indicator */}
+                  <div className="flex items-center gap-1.5 text-accent-foreground bg-accent/60 border border-border px-2.5 py-0.5 rounded-[var(--radius)] text-[11px] font-semibold w-fit">
+                    <span>🤝</span>
+                    <span>
+                      {ride.mutualRideCount > 0
+                        ? `${ride.mutualRideCount} shared ${ride.mutualRideCount === 1 ? 'ride' : 'rides'} with driver`
+                        : '1st ride together (Verified student)'}
+                    </span>
+                  </div>
 
-          {/* Presets */}
-          <div className="pt-2 border-t border-slate-200">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Quick Presets</span>
-            <div className="flex flex-wrap gap-1">
-              {POPULAR_LOCATIONS.map((loc) => (
-                <button
-                  type="button"
-                  key={loc.label}
-                  onClick={() => {
-                    setDestination(loc);
-                    setDestQuery(loc.label);
-                    setDestResults([]);
-                  }}
-                  className={`text-[11px] px-2 py-0.5 rounded-full border transition cursor-pointer ${
-                    destination.label === loc.label
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {loc.label.split(' ')[0]}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+                  <div className="text-xs text-muted-foreground grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 font-mono">
+                    <p><strong className="text-foreground">Departs:</strong> {ride.departureTime}</p>
+                    <p><strong className="text-foreground">Seats:</strong> {ride.availableSeats} open</p>
+                    <p><strong className="text-foreground">Est. Share:</strong> ₹{ride.estimatedCostPerHead || ride.estimatedCost || 'TBD'}</p>
+                    <p className="col-span-2 text-primary font-sans font-medium">
+                      📍 Walking distance to pickup: ~{ride.boardingDistanceKm} km
+                    </p>
+                  </div>
 
-        {/* TIME & DATE */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Commute Date
-            </label>
-            <input
-              type="date"
-              required
-              className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Preferred Time
-            </label>
-            <input
-              type="time"
-              required
-              className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {error && <p className="text-red-600 text-xs bg-red-50 p-2.5 rounded-lg border border-red-200">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-sm disabled:opacity-50 transition cursor-pointer"
-        >
-          {isLoading ? 'Calculating Best Matches...' : 'Find Matching Rides'}
-        </button>
-      </form>
-
-      {/* RESULTS DISPLAY */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 text-slate-800">
-          Matched Rides {searchAttempted && !isLoading && `(${results.length})`}
-        </h2>
-
-        {isLoading && <p className="text-slate-500 text-sm">Evaluating route overlaps and boarding distances...</p>}
-
-        {!isLoading && searchAttempted && results.length === 0 && !error && (
-          <div className="bg-slate-100 text-slate-600 p-6 rounded-xl text-center text-sm border border-slate-200">
-            No viable rides found along this corridor. Try adjusting your preferred time or location!
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {results.map((ride) => (
-            <div
-              key={ride._id}
-              className="bg-white p-5 rounded-xl shadow-xs border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
-            >
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-lg text-slate-800">
-                    {ride.driverId?.name || 'Driver'}
-                  </span>
-                  <span className="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-0.5 rounded-full font-medium border border-indigo-100">
-                    {ride.vehicleId?.model || 'Vehicle'}
-                  </span>
+                  <div className="pt-1">
+                    <Link
+                      to={`/rides/${ride._id}`}
+                      className="text-xs text-primary hover:underline font-semibold inline-flex items-center gap-1"
+                    >
+                      Inspect Route &amp; Roster Details <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
                 </div>
 
-                {/* MUTUAL RIDE BADGE */}
-                <div className="flex items-center gap-1.5 text-indigo-700 bg-indigo-50/80 border border-indigo-100 px-2 py-0.5 rounded-md text-[11px] font-semibold w-fit">
-                  <span>🤝</span>
-                  <span>
-                    {ride.mutualRideCount > 0
-                      ? `${ride.mutualRideCount} shared ${ride.mutualRideCount === 1 ? 'ride' : 'rides'} with driver`
-                      : '1st ride together'}
-                  </span>
-                </div>
-
-                <div className="text-xs text-slate-600 space-y-1 pt-1">
-                  <p><strong>Departure:</strong> {ride.departureTime}</p>
-                  <p><strong>Available Seats:</strong> {ride.availableSeats}</p>
-                  <p><strong>Est. Share:</strong> ₹{ride.estimatedCostPerHead || ride.estimatedCost || 'TBD'}</p>
-                  <p className="text-indigo-600 font-medium">
-                    📍 Walk to boarding: ~{ride.boardingDistanceKm} km
-                  </p>
-                </div>
-
-                <div className="pt-1">
-                  <Link
-                    to={`/rides/${ride._id}`}
-                    className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold underline"
+                <div className="flex flex-col items-end min-w-[170px] w-full sm:w-auto shrink-0">
+                  <div className="bg-secondary border border-border text-foreground px-4 py-2.5 rounded-[var(--radius)] text-center mb-3 w-full">
+                    <span className="block text-2xl font-mono font-black text-primary">{ride.matchScore}%</span>
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Match Score</span>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={bookingRideId === ride._id}
+                    className="w-full text-xs font-bold"
+                    size="default"
+                    onClick={() => handleBookRide(ride)}
                   >
-                    View Trip Details →
-                  </Link>
+                    {bookingRideId === ride._id ? 'Reserving...' : `Book Seat (Hold ₹${ride.estimatedCostPerHead || 0})`}
+                  </Button>
                 </div>
               </div>
-
-              <div className="flex flex-col items-end min-w-[150px] w-full sm:w-auto">
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2 rounded-lg text-center mb-3 w-full">
-                  <span className="block text-2xl font-black">{ride.matchScore}%</span>
-                  <span className="text-[10px] uppercase tracking-wider font-bold">Match Score</span>
-                </div>
-                <button
-                  type="button"
-                  disabled={bookingRideId === ride._id}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold py-2.5 rounded-lg transition shadow-xs cursor-pointer"
-                  onClick={() => handleBookRide(ride)}
-                >
-                  {bookingRideId === ride._id ? 'Reserving...' : `Book Seat (Hold ₹${ride.estimatedCostPerHead || 0})`}
-                </button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+
       </div>
     </div>
   );

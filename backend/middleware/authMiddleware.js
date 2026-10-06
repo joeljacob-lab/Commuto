@@ -24,7 +24,9 @@ export const protect = async (req, res, next) => {
 
     // decoded.userId is the collegeId; passwordHash excluded on purpose —
     // controllers should never need it once auth has already happened.
-    const user = await User.findById(decoded.userId).select('-passwordHash');
+    const user = await User.findById(decoded.userId)
+      .select('-passwordHash')
+      .populate('deptId');
 
     if (!user) {
       return res.status(401).json({ message: 'Not authorized, user no longer exists' });
