@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { toast } from '../../components/ui/toaster';
 import { getMyDriverRides, completeRide } from '../../services/api';
 
 // Safe date/time formatting helpers that never throw RangeError
@@ -82,12 +83,15 @@ const MyRides = () => {
 
     try {
       const res = await completeRide(rideId);
-      setActionSuccess(`Trip completed! Payout of ₹${res.data?.data?.totalPayout || 0} credited to your wallet.`);
+      const payoutMsg = `Trip completed! Payout of ₹${res.data?.data?.totalPayout || 0} credited to your wallet.`;
+      setActionSuccess(payoutMsg);
+      toast.success(payoutMsg, { title: 'Escrow Released' });
       setLoading(true);
       setRefreshKey((k) => k + 1);
       setTimeout(() => setActionSuccess(''), 4500);
     } catch (err) {
-      alert(`⚠️ ${err.response?.data?.message || 'Could not complete ride.'}`);
+      const errorMsg = err.response?.data?.message || 'Could not complete ride.';
+      toast.error(errorMsg, { title: 'Trip Action Failed' });
     }
   };
 

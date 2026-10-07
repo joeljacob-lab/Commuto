@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { registerUser, getDepartments } from '../services/api';
 import { Button } from '../components/ui/button';
+import { toast } from '../components/ui/toaster';
 import { AlertCircle, ArrowRight } from 'lucide-react';
 import commutoLogo from '../assets/Commuto_ emblem.png';
 
@@ -87,7 +88,9 @@ function Register() {
     setError('');
 
     if (!selectedDepartment) {
-      setError('Please select your department and program');
+      const msg = 'Please select your department and program';
+      setError(msg);
+      toast.warning(msg, { title: 'Selection Missing' });
       return;
     }
 
@@ -99,9 +102,12 @@ function Register() {
         year: Number(formData.year),
       });
       login(data.user, data.token);
+      toast.success('Account created! Welcome to Commuto transit.', { title: 'Registration Complete' });
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      const errMsg = err.response?.data?.message || 'Registration failed. Please try again.';
+      setError(errMsg);
+      toast.error(errMsg, { title: 'Registration Failed' });
     } finally {
       setSubmitting(false);
     }

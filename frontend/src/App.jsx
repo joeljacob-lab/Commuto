@@ -20,6 +20,7 @@ import Profile from './pages/Profile';
 import RideDetails from './pages/RideDetails';
 import Dashboard from './pages/Dashboard';
 import Landing from './pages/Landing';
+import Toaster from './components/ui/toaster';
 
 function NotFound() {
   return (
@@ -48,6 +49,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        <Toaster defaultPosition="top-center" />
         <Navbar />
         <Routes>
           <Route path="/" element={<HomeOrDashboard />} />

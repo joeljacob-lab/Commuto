@@ -5,8 +5,9 @@ import {
   MapPin, 
   Navigation, 
   ArrowRight
-} from 'lucide-react';
+  } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { toast } from '../components/ui/toaster';
 
 const POPULAR_LOCATIONS = [
   { label: 'Campus Main Gate', coordinates: [76.3284, 10.0438] },
@@ -140,7 +141,7 @@ const SearchRides = () => {
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      toast.warning('Geolocation is not supported by your browser.', { title: 'Location Unavailable' });
       return;
     }
 
@@ -156,9 +157,10 @@ const SearchRides = () => {
         });
         setOriginQuery('My Current Location');
         setOriginResults([]);
+        toast.info('Set origin to your current GPS coordinates.', { title: 'Location Detected' });
       },
       () => {
-        alert('Could not fetch your location. Please check browser permissions.');
+        toast.error('Could not fetch your location. Please check browser permissions.', { title: 'Permission Denied' });
       }
     );
   };
@@ -225,11 +227,11 @@ const SearchRides = () => {
       };
 
       await createBooking(bookingPayload);
-      alert('🎉 Seat reserved successfully! An escrow hold has been placed. Final fare locks at 9:00 PM.');
+      toast.success('Seat reserved successfully! Escrow hold placed. Final fare locks at 9:00 PM.', { title: 'Seat Reserved' });
       navigate('/bookings');
     } catch (err) {
       const msg = err.response?.data?.message || 'Booking failed. Check your wallet balance.';
-      alert(`⚠️ ${msg}`);
+      toast.error(msg, { title: 'Reservation Failed' });
     } finally {
       setBookingRideId(null);
     }

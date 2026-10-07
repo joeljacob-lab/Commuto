@@ -11,6 +11,7 @@ import {
   AlertCircle 
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { toast } from '../../components/ui/toaster';
 import {
   getDepartments,
   createDepartment,
@@ -64,7 +65,9 @@ function DepartmentManagement() {
       await refreshDepartments();
       return true;
     } catch (err) {
-      setError(err.response?.data?.message || fallbackMessage);
+      const msg = err.response?.data?.message || fallbackMessage;
+      setError(msg);
+      toast.error(msg, { title: 'Department Error' });
       return false;
     }
   };
@@ -72,8 +75,12 @@ function DepartmentManagement() {
   const handleAdd = async (e) => {
     e.preventDefault();
     setAdding(true);
+    const deptNameToAdd = newDept.deptName;
     const ok = await run(() => createDepartment(newDept), 'Failed to add department');
-    if (ok) setNewDept({ deptName: '', programName: '' });
+    if (ok) {
+      toast.success(`Department "${deptNameToAdd}" created successfully!`, { title: 'Department Added' });
+      setNewDept({ deptName: '', programName: '' });
+    }
     setAdding(false);
   };
 
@@ -84,12 +91,18 @@ function DepartmentManagement() {
 
   const saveEdit = async () => {
     const ok = await run(() => updateDepartment(editingId, editDraft), 'Failed to update department');
-    if (ok) setEditingId(null);
+    if (ok) {
+      toast.success('Department program details updated!', { title: 'Changes Saved' });
+      setEditingId(null);
+    }
   };
 
   const handleDelete = async (dept) => {
     if (!window.confirm(`Delete ${dept.deptName} (${dept.programName})?`)) return;
-    await run(() => deleteDepartment(dept._id), 'Failed to delete department');
+    const ok = await run(() => deleteDepartment(dept._id), 'Failed to delete department');
+    if (ok) {
+      toast.success(`Department "${dept.deptName}" removed.`, { title: 'Department Deleted' });
+    }
   };
 
   return (

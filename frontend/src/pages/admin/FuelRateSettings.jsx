@@ -10,6 +10,7 @@ import {
   User
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { toast } from '../../components/ui/toaster';
 import { getCurrentFuelRate, getFuelRateHistory, setFuelRate } from '../../services/api';
 
 function FuelRateSettings() {
@@ -64,14 +65,18 @@ function FuelRateSettings() {
 
     try {
       await setFuelRate({ pricePerLitre: Number(priceInput) });
-      setStatus({ error: '', success: 'Fuel rate updated successfully!' });
+      const msg = `Fuel rate updated successfully to ₹${Number(priceInput).toFixed(2)}/L!`;
+      setStatus({ error: '', success: msg });
+      toast.success(msg, { title: 'Tariff Updated' });
       setRefreshTrigger((prev) => prev + 1);
       setTimeout(() => setStatus({ error: '', success: '' }), 4000);
     } catch (err) {
+      const errMsg = err.response?.data?.message || 'Failed to update fuel rate';
       setStatus({
-        error: err.response?.data?.message || 'Failed to update fuel rate',
+        error: errMsg,
         success: '',
       });
+      toast.error(errMsg, { title: 'Update Error' });
     } finally {
       setSubmitting(false);
     }

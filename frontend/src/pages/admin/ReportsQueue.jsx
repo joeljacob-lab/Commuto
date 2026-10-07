@@ -12,6 +12,7 @@ import {
   Shield
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { toast } from '../../components/ui/toaster';
 import { getAllReports, updateReportStatus } from '../../services/api';
 
 const ReportsQueue = () => {
@@ -45,8 +46,9 @@ const ReportsQueue = () => {
       setReports((prev) =>
         prev.map((r) => (r._id === reportId ? { ...r, status: newStatus } : r))
       );
+      toast.success(`Complaint status transitioned to ${newStatus}.`, { title: 'Triage Updated' });
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to update report status');
+      toast.error(error.response?.data?.message || 'Failed to update report status', { title: 'Triage Error' });
     } finally {
       setUpdatingId(null);
     }

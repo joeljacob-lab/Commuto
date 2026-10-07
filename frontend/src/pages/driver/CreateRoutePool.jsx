@@ -13,6 +13,7 @@ import {
   Navigation
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { toast } from '../../components/ui/toaster';
 import { getMyVehicles, createRoutePool } from '../../services/api';
 
 const DAYS_OF_WEEK = [
@@ -153,7 +154,7 @@ function CreateRoutePool() {
   // Browser Geolocation API ("Use My Current Location")
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser');
+      toast.warning('Geolocation is not supported by your browser', { title: 'Location Unavailable' });
       return;
     }
 
@@ -166,9 +167,10 @@ function CreateRoutePool() {
         });
         setOriginQuery('My Current Location');
         setOriginResults([]);
+        toast.info('Origin set to current GPS coordinates.', { title: 'Location Detected' });
       },
       () => {
-        alert('Could not fetch your location. Please check browser permissions.');
+        toast.error('Could not fetch your location. Please check browser permissions.', { title: 'Permission Denied' });
       }
     );
   };
@@ -204,7 +206,9 @@ function CreateRoutePool() {
     setStatus({ error: '', success: '' });
 
     if (recurrenceDays.length === 0) {
-      return setStatus({ error: 'Please select at least one recurrence day', success: '' });
+      const msg = 'Please select at least one recurrence day';
+      toast.warning(msg, { title: 'Timetable Required' });
+      return setStatus({ error: msg, success: '' });
     }
 
     setSubmitting(true);
@@ -220,13 +224,17 @@ function CreateRoutePool() {
       };
 
       await createRoutePool(payload);
-      setStatus({ error: '', success: 'Recurring Route Pool created successfully!' });
+      const successMsg = 'Recurring Route Pool created successfully!';
+      setStatus({ error: '', success: successMsg });
+      toast.success(successMsg, { title: 'Pool Established' });
       setTimeout(() => navigate('/driver/routepools'), 1200);
     } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Failed to create route pool';
       setStatus({
-        error: err.response?.data?.message || 'Failed to create route pool',
+        error: errorMsg,
         success: '',
       });
+      toast.error(errorMsg, { title: 'Creation Error' });
     } finally {
       setSubmitting(false);
     }

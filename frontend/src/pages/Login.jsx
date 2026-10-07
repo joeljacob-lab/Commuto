@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginUser } from '../services/api';
 import { Button } from '../components/ui/button';
+import { toast } from '../components/ui/toaster';
 import { Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
 import commutoLogo from '../assets/Commuto_ emblem.png';
 
@@ -26,9 +27,12 @@ function Login() {
     try {
       const { data } = await loginUser(formData);
       login(data.user, data.token);
+      toast.success(`Welcome back, ${data.user?.name || 'Student'}!`, { title: 'Signed In' });
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      const errMsg = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      setError(errMsg);
+      toast.error(errMsg, { title: 'Authentication Failed' });
     } finally {
       setSubmitting(false);
     }

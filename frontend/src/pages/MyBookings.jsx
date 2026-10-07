@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { getMyBookings, cancelBooking, createReview, createReport } from '../services/api';
 import { Button } from '../components/ui/button';
+import { toast } from '../components/ui/toaster';
 
 const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
@@ -60,9 +61,15 @@ const MyBookings = () => {
     try {
       setCancellingId(booking._id);
       await cancelBooking(booking._id);
+      toast.success(
+        isPastLock
+          ? 'Booking cancelled. Escrow hold forfeited per cancellation policy.'
+          : 'Booking cancelled. Escrow share refunded to your spendable wallet balance.',
+        { title: 'Reservation Cancelled' }
+      );
       setRefreshKey((prev) => prev + 1);
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to cancel booking');
+      toast.error(error.response?.data?.message || 'Failed to cancel booking', { title: 'Cancellation Error' });
     } finally {
       setCancellingId(null);
     }
@@ -84,11 +91,11 @@ const MyBookings = () => {
         rating: Number(rating),
         comment: comment.trim(),
       });
-      alert('Review submitted successfully!');
+      toast.success('Review and rating recorded for driver trust score!', { title: 'Feedback Recorded' });
       setReviewModalOpen(false);
       setComment('');
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to submit review');
+      toast.error(error.response?.data?.message || 'Failed to submit review', { title: 'Submission Error' });
     } finally {
       setReviewSubmitting(false);
     }
@@ -109,11 +116,11 @@ const MyBookings = () => {
         againstUserId,
         description: reportDescription.trim(),
       });
-      alert('Safety incident report filed with campus moderation queue.');
+      toast.warning('Safety incident complaint filed with campus moderation queue.', { title: 'Report Filed' });
       setReportModalOpen(false);
       setReportDescription('');
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to file safety report');
+      toast.error(error.response?.data?.message || 'Failed to file safety report', { title: 'Submission Error' });
     } finally {
       setReportSubmitting(false);
     }

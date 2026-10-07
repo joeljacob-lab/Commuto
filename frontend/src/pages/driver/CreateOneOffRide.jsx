@@ -12,6 +12,7 @@ import {
   Search 
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { toast } from '../../components/ui/toaster';
 import { getMyVehicles, createOneOffRide } from '../../services/api';
 
 const POPULAR_LOCATIONS = [
@@ -99,13 +100,17 @@ function CreateOneOffRide() {
       };
 
       await createOneOffRide(payload);
-      setStatus({ error: '', success: 'Single-Day Ride published successfully!' });
+      const successMsg = 'Single-Day Ride published successfully!';
+      setStatus({ error: '', success: successMsg });
+      toast.success(successMsg, { title: 'Ride Published' });
       setTimeout(() => navigate('/driver/rides'), 1200);
     } catch (err) {
+      const errMsg = err.response?.data?.message || 'Failed to publish ride';
       setStatus({
-        error: err.response?.data?.message || 'Failed to publish ride',
+        error: errMsg,
         success: '',
       });
+      toast.error(errMsg, { title: 'Publishing Error' });
     } finally {
       setSubmitting(false);
     }

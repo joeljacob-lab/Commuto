@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { withdrawWallet } from '../services/api';
 import { Button } from './ui/button';
+import { toast } from './ui/toaster';
 
 const WithdrawModal = ({ isOpen, onClose, currentBalance = 0, onSuccess }) => {
   const [amount, setAmount] = useState('100');
@@ -27,12 +28,12 @@ const WithdrawModal = ({ isOpen, onClose, currentBalance = 0, onSuccess }) => {
     const withdrawAmt = Number(amount);
 
     if (!withdrawAmt || withdrawAmt <= 0) {
-      alert('Please enter a valid withdrawal amount');
+      toast.warning('Please enter a valid withdrawal amount', { title: 'Invalid Amount' });
       return;
     }
 
     if (withdrawAmt > currentBalance) {
-      alert(`Insufficient balance! Your available balance is ₹${currentBalance}`);
+      toast.error(`Insufficient balance! Available balance is ₹${currentBalance}`, { title: 'Balance Exceeded' });
       return;
     }
 
@@ -47,12 +48,13 @@ const WithdrawModal = ({ isOpen, onClose, currentBalance = 0, onSuccess }) => {
 
       const res = await withdrawWallet(payload);
       setSuccessData(res.data);
+      toast.success(res.data.message || `Transfer of ₹${withdrawAmt} initiated!`, { title: 'Withdrawal Initiated' });
 
       setTimeout(() => {
         if (onSuccess) onSuccess(res.data.walletBalance);
       }, 1500);
     } catch (err) {
-      alert(err.response?.data?.message || 'Withdrawal failed');
+      toast.error(err.response?.data?.message || 'Withdrawal failed', { title: 'Withdrawal Error' });
     } finally {
       setLoading(false);
     }

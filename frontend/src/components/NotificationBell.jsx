@@ -8,6 +8,31 @@ import {
 } from '../services/api';
 import { socket, connectSocket } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
+import { toast } from './ui/toaster';
+
+const getNotificationColor = (type) => {
+  switch (type) {
+    case 'booking_request': return 'text-primary bg-secondary border border-border';
+    case 'booking_accepted': return 'text-emerald-800 bg-emerald-50 border border-emerald-200';
+    case 'booking_rejected': return 'text-rose-800 bg-rose-50 border border-rose-200';
+    case 'ride_cancelled': return 'text-amber-800 bg-amber-50 border border-amber-200';
+    case 'ride_reminder': return 'text-primary bg-secondary border border-border';
+    case 'report_update': return 'text-rose-800 bg-rose-50 border border-rose-200';
+    default: return 'text-foreground bg-secondary/80 border border-border';
+  }
+};
+
+const formatTypeLabel = (type) => {
+  switch (type) {
+    case 'booking_request': return 'New Booking';
+    case 'booking_accepted': return 'Booking Confirmed';
+    case 'booking_rejected': return 'Booking Declined';
+    case 'ride_cancelled': return 'Ride / Seat Cancelled';
+    case 'ride_reminder': return 'Trip Reminder';
+    case 'report_update': return 'Safety Report Update';
+    default: return 'Notification';
+  }
+};
 
 const NotificationBell = () => {
   const { user } = useAuth();
@@ -42,6 +67,7 @@ const NotificationBell = () => {
     const handleNewNotification = (notification) => {
       setNotifications((prev) => [notification, ...prev]);
       setUnreadCount((prev) => prev + 1);
+      toast.info(notification.message, { title: formatTypeLabel(notification.type) });
     };
 
     socket.on('new_notification', handleNewNotification);
@@ -82,32 +108,9 @@ const NotificationBell = () => {
       await markAllNotificationsAsRead();
       setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
       setUnreadCount(0);
+      toast.success('All notifications marked as read', { title: 'Inbox Cleared' });
     } catch (error) {
       console.error('Failed to mark all as read:', error);
-    }
-  };
-
-  const getNotificationColor = (type) => {
-    switch (type) {
-      case 'booking_request': return 'text-primary bg-secondary border border-border';
-      case 'booking_accepted': return 'text-emerald-800 bg-emerald-50 border border-emerald-200';
-      case 'booking_rejected': return 'text-rose-800 bg-rose-50 border border-rose-200';
-      case 'ride_cancelled': return 'text-amber-800 bg-amber-50 border border-amber-200';
-      case 'ride_reminder': return 'text-primary bg-secondary border border-border';
-      case 'report_update': return 'text-rose-800 bg-rose-50 border border-rose-200';
-      default: return 'text-foreground bg-secondary/80 border border-border';
-    }
-  };
-
-  const formatTypeLabel = (type) => {
-    switch (type) {
-      case 'booking_request': return 'New Booking';
-      case 'booking_accepted': return 'Booking Confirmed';
-      case 'booking_rejected': return 'Booking Declined';
-      case 'ride_cancelled': return 'Ride / Seat Cancelled';
-      case 'ride_reminder': return 'Trip Reminder';
-      case 'report_update': return 'Safety Report Update';
-      default: return 'Notification';
     }
   };
 

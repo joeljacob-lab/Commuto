@@ -20,6 +20,7 @@ import { getMyWallet, getUserReviews, getDepartments } from '../services/api';
 import MockPaymentGatewayModal from '../components/MockPaymentGatewayModal';
 import WithdrawModal from '../components/WithdrawModal';
 import { Button } from '../components/ui/button';
+import { toast } from '../components/ui/toaster';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
@@ -339,6 +340,7 @@ const Profile = () => {
         initialAmount={gatewayAmount}
         onSuccess={(newBal) => {
           updateUser({ walletBalance: newBal });
+          toast.success(`Escrow wallet recharged! Current balance: ₹${newBal}`, { title: 'Top-Up Successful' });
           setRefreshKey((k) => k + 1);
         }}
       />
@@ -350,6 +352,7 @@ const Profile = () => {
         currentBalance={user?.walletBalance || 0}
         onSuccess={(newBal) => {
           updateUser({ walletBalance: newBal });
+          toast.success(`Transfer initiated. Remaining balance: ₹${newBal}`, { title: 'Cash Out Confirmed' });
           setRefreshKey((k) => k + 1);
         }}
       />

@@ -9,6 +9,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { toast } from '../../components/ui/toaster';
 import { addVehicle } from '../../services/api';
 
 function VehicleForm() {
@@ -36,11 +37,13 @@ function VehicleForm() {
     const hasInvalidFile = files.some((file) => !allowedTypes.includes(file.type));
 
     if (hasInvalidFile) {
+      const errMsg = 'Unsupported file format! Please upload JPG, PNG, or PDF files only.';
       setStatus({
         loading: false,
-        error: 'Unsupported file format! Please upload JPG, PNG, or PDF files only.',
+        error: errMsg,
         success: '',
       });
+      toast.error(errMsg, { title: 'Invalid File Format' });
       if (fileInputRef.current) fileInputRef.current.value = '';
       setDocuments([]);
       return;
@@ -62,11 +65,13 @@ function VehicleForm() {
         setStatus((prev) => ({ ...prev, error: '' }));
       })
       .catch(() => {
+        const errMsg = 'Error reading files. Please try again.';
         setStatus({
           loading: false,
-          error: 'Error reading files. Please try again.',
+          error: errMsg,
           success: '',
         });
+        toast.error(errMsg, { title: 'Upload Error' });
       });
   };
 
@@ -75,22 +80,26 @@ function VehicleForm() {
     setStatus({ loading: true, error: '', success: '' });
 
     if (documents.length === 0) {
+      const errMsg = 'Please upload at least one RC or Insurance document for verification.';
       setStatus({
         loading: false,
-        error: 'Please upload at least one RC or Insurance document for verification.',
+        error: errMsg,
         success: '',
       });
+      toast.warning(errMsg, { title: 'Documents Required' });
       return;
     }
 
     try {
       await addVehicle({ ...formData, documents });
       
+      const successMsg = 'Vehicle submitted for admin verification! Our campus safety team will review your papers shortly.';
       setStatus({
         loading: false,
         error: '',
-        success: 'Vehicle submitted for admin verification! Our campus safety team will review your papers shortly.',
+        success: successMsg,
       });
+      toast.success('Vehicle registered and submitted for admin verification!', { title: 'Submission Received' });
 
       // Reset form
       setFormData({
@@ -108,11 +117,15 @@ function VehicleForm() {
         fileInputRef.current.value = '';
       }
     } catch (err) {
+      const errMsg = err.response?.data?.message || 'Failed to submit vehicle.';
       setStatus({
         loading: false,
-        error: err.response?.data?.message || 'Failed to submit vehicle.',
+        error: errMsg,
         success: '',
       });
+      toast.error(errMsg, { title: 'Registration Failed' });
+    } finally {
+      setStatus((prev) => ({ ...prev, loading: false }));
     }
   };
 

@@ -16,6 +16,7 @@ import {
 import { getRideById, createBooking } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
+import { toast } from '../components/ui/toaster';
 
 const RideDetails = () => {
   const { id } = useParams();
@@ -70,11 +71,14 @@ const RideDetails = () => {
 
       await createBooking(payload);
       setBookingSuccess(true);
+      toast.success('Seat reserved successfully! Your fuel share is held in escrow.', { title: 'Booking Confirmed' });
       setTimeout(() => {
         navigate('/bookings');
       }, 1500);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to book seat. Please check your wallet balance.');
+      const msg = err?.response?.data?.message || 'Failed to book seat. Please check your wallet balance.';
+      setError(msg);
+      toast.error(msg, { title: 'Reservation Failed' });
     } finally {
       setBookingLoading(false);
     }

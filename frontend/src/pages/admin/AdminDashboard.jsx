@@ -14,6 +14,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { toast } from '../../components/ui/toaster';
 import { getAdminStats, getAdminUsers } from '../../services/api';
 
 const AdminDashboard = () => {
@@ -36,6 +37,7 @@ const AdminDashboard = () => {
         setUsers(usersRes.data.data || []);
       } catch (error) {
         console.error('Failed to load admin stats:', error);
+        toast.error('Failed to load administrator statistics', { title: 'Admin Sync' });
       } finally {
         setLoading(false);
       }
@@ -72,7 +74,10 @@ const AdminDashboard = () => {
 
           <Button
             variant="outline"
-            onClick={() => setRefreshKey(prev => prev + 1)}
+            onClick={() => {
+              setRefreshKey(prev => prev + 1);
+              toast.info('Refreshing platform metrics and campus directory...', { title: 'Admin Sync' });
+            }}
             className="text-xs h-9 border-border bg-card hover:bg-secondary transition"
           >
             <RefreshCw className={`w-3.5 h-3.5 mr-2 ${loading ? 'animate-spin' : ''}`} />

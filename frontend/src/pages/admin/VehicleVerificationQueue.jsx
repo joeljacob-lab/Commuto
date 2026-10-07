@@ -12,6 +12,7 @@ import {
   ShieldCheck 
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { toast } from '../../components/ui/toaster';
 import { getPendingVehicles, updateVehicleStatus } from '../../services/api';
 
 function VehicleVerificationQueue() {
@@ -48,11 +49,13 @@ function VehicleVerificationQueue() {
     if (!window.confirm(`Mark vehicle ${id} as ${status}?`)) return;
     try {
       await updateVehicleStatus(id, status);
-      setActionSuccess(`Vehicle ${id} marked as ${status}.`);
+      const msg = `Vehicle ${id} marked as ${status}.`;
+      setActionSuccess(msg);
+      toast.success(msg, { title: status === 'approved' ? 'Vehicle Approved' : 'Vehicle Rejected' });
       setRefreshTrigger(prev => prev + 1);
       setTimeout(() => setActionSuccess(''), 4000);
     } catch {
-      alert(`Failed to update vehicle status.`);
+      toast.error(`Failed to update status for vehicle ${id}.`, { title: 'Update Error' });
     }
   };
 

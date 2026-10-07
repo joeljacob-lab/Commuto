@@ -14,6 +14,7 @@ import {
 import { topUpWallet } from '../services/api';
 import commutoLogo from '../assets/Commuto_ emblem.png';
 import { Button } from './ui/button';
+import { toast } from './ui/toaster';
 
 const MockPaymentGatewayModal = ({ isOpen, onClose, initialAmount = '200', onSuccess }) => {
   const [amount, setAmount] = useState(initialAmount);
@@ -85,7 +86,7 @@ const MockPaymentGatewayModal = ({ isOpen, onClose, initialAmount = '200', onSuc
           onClose();
         }, 1400);
       } catch (err) {
-        alert(err.response?.data?.message || 'Payment simulation failed');
+        toast.error(err.response?.data?.message || 'Payment simulation failed', { title: 'Payment Failed' });
         setGatewayStep('input');
       }
     }, 1600);

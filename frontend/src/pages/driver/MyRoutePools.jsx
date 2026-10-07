@@ -14,6 +14,7 @@ import {
   Play
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { toast } from '../../components/ui/toaster';
 import { getMyRoutePools, toggleRoutePoolStatus, deleteRoutePool } from '../../services/api';
 
 function MyRoutePools() {
@@ -43,11 +44,15 @@ function MyRoutePools() {
   const handleToggle = async (id) => {
     try {
       await toggleRoutePoolStatus(id);
-      setStatus({ error: '', success: `Pool status updated successfully!` });
+      const msg = 'Route pool status updated successfully!';
+      setStatus({ error: '', success: msg });
+      toast.success(msg, { title: 'Pool Updated' });
       setRefreshTrigger((prev) => prev + 1);
       setTimeout(() => setStatus({ error: '', success: '' }), 4000);
     } catch {
-      setStatus({ error: 'Failed to update pool status', success: '' });
+      const errMsg = 'Failed to update pool status';
+      setStatus({ error: errMsg, success: '' });
+      toast.error(errMsg, { title: 'Action Failed' });
     }
   };
 
@@ -55,11 +60,15 @@ function MyRoutePools() {
     if (!window.confirm('Are you sure you want to delete this route pool? This will stop recurring daily ride generation.')) return;
     try {
       await deleteRoutePool(id);
-      setStatus({ error: '', success: 'Route pool deleted' });
+      const msg = 'Route pool deleted successfully.';
+      setStatus({ error: '', success: msg });
+      toast.success(msg, { title: 'Pool Deleted' });
       setRefreshTrigger((prev) => prev + 1);
       setTimeout(() => setStatus({ error: '', success: '' }), 4000);
     } catch {
-      setStatus({ error: 'Failed to delete route pool', success: '' });
+      const errMsg = 'Failed to delete route pool';
+      setStatus({ error: errMsg, success: '' });
+      toast.error(errMsg, { title: 'Action Failed' });
     }
   };
 
