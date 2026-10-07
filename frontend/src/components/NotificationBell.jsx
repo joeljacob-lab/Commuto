@@ -89,13 +89,13 @@ const NotificationBell = () => {
 
   const getNotificationColor = (type) => {
     switch (type) {
-      case 'booking_request': return 'text-blue-600 bg-blue-50';
-      case 'booking_accepted': return 'text-emerald-600 bg-emerald-50';
-      case 'booking_rejected': return 'text-red-600 bg-red-50';
-      case 'ride_cancelled': return 'text-amber-600 bg-amber-50';
-      case 'ride_reminder': return 'text-purple-600 bg-purple-50';
-      case 'report_update': return 'text-rose-600 bg-rose-50';
-      default: return 'text-slate-600 bg-slate-50';
+      case 'booking_request': return 'text-primary bg-secondary border border-border';
+      case 'booking_accepted': return 'text-emerald-800 bg-emerald-50 border border-emerald-200';
+      case 'booking_rejected': return 'text-rose-800 bg-rose-50 border border-rose-200';
+      case 'ride_cancelled': return 'text-amber-800 bg-amber-50 border border-amber-200';
+      case 'ride_reminder': return 'text-primary bg-secondary border border-border';
+      case 'report_update': return 'text-rose-800 bg-rose-50 border border-rose-200';
+      default: return 'text-foreground bg-secondary/80 border border-border';
     }
   };
 
@@ -117,12 +117,12 @@ const NotificationBell = () => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-slate-600 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-full transition-colors cursor-pointer"
+        className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/70 focus:outline-none rounded-full transition-colors cursor-pointer"
         aria-label="View notifications"
       >
-        <Bell className="w-5 h-5" />
+        <Bell className="w-4 h-4" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold text-white bg-rose-500 rounded-full border-2 border-white leading-none transform translate-x-1 -translate-y-1">
+          <span className="absolute top-1 right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-primary-foreground bg-primary rounded-full border border-background leading-none transform translate-x-1 -translate-y-1 shadow-xs">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -130,16 +130,16 @@ const NotificationBell = () => {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-          <div className="p-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <span className="font-semibold text-xs uppercase tracking-wider text-slate-700">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-card rounded-[var(--radius)] shadow-xl border border-border overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="p-3.5 border-b border-border flex justify-between items-center bg-secondary/30">
+            <span className="font-mono font-semibold text-xs uppercase tracking-wider text-foreground">
               Notifications {unreadCount > 0 && `(${unreadCount} unread)`}
             </span>
             {unreadCount > 0 && (
               <button
                 type="button"
                 onClick={handleMarkAllAsRead}
-                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 cursor-pointer"
+                className="text-xs font-mono text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 Mark all read
@@ -147,33 +147,33 @@ const NotificationBell = () => {
             )}
           </div>
 
-          <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
+          <div className="max-h-96 overflow-y-auto divide-y divide-border/60">
             {notifications.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 text-sm">
+              <div className="p-8 text-center text-muted-foreground text-xs font-mono">
                 No notifications yet.
               </div>
             ) : (
               notifications.map((notif) => (
                 <div
                   key={notif._id}
-                  className={`p-3.5 hover:bg-slate-50/80 transition-colors flex gap-3 ${
-                    !notif.read ? 'bg-indigo-50/40' : ''
+                  className={`p-3.5 hover:bg-secondary/20 transition-colors flex gap-3 ${
+                    !notif.read ? 'bg-secondary/40' : ''
                   }`}
                 >
-                  <div className={`mt-0.5 p-2 rounded-lg h-fit shrink-0 ${getNotificationColor(notif.type)}`}>
-                    <Bell className="w-4 h-4" />
+                  <div className={`mt-0.5 p-2 rounded-[var(--radius)] h-fit shrink-0 ${getNotificationColor(notif.type)}`}>
+                    <Bell className="w-3.5 h-3.5" />
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <p className="text-xs font-bold text-slate-800">
+                      <p className="text-xs font-serif font-bold text-foreground">
                         {formatTypeLabel(notif.type)}
                       </p>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] font-mono text-muted-foreground">
                         {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed font-sans">
                       {notif.message}
                     </p>
                   </div>
@@ -182,10 +182,10 @@ const NotificationBell = () => {
                     <button
                       type="button"
                       onClick={(e) => handleMarkAsRead(notif._id, e)}
-                      className="shrink-0 p-1 text-slate-400 hover:text-emerald-600 rounded transition cursor-pointer"
+                      className="shrink-0 p-1 text-muted-foreground hover:text-primary rounded transition cursor-pointer"
                       title="Mark as read"
                     >
-                      <Check className="w-4 h-4" />
+                      <Check className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>

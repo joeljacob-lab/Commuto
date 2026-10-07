@@ -1,5 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { 
+  Car, 
+  ArrowLeft, 
+  MapPin, 
+  Calendar, 
+  Clock, 
+  Users, 
+  AlertCircle, 
+  CheckCircle2, 
+  Search 
+} from 'lucide-react';
+import { Button } from '../../components/ui/button';
 import { getMyVehicles, createOneOffRide } from '../../services/api';
 
 const POPULAR_LOCATIONS = [
@@ -102,38 +114,56 @@ function CreateOneOffRide() {
   const approvedVehicles = vehicles.filter((v) => v.verificationStatus === 'approved');
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4">
-      <div className="max-w-3xl mx-auto">
-        <Link to="/driver/rides" className="text-sm text-indigo-600 hover:underline">
-          ← Back to my rides
+    <div className="min-h-screen bg-background relative py-10 px-4 sm:px-6 lg:px-8 text-foreground selection:bg-primary/20 selection:text-primary">
+      {/* Background canvas dot grid */}
+      <div className="fixed inset-0 pointer-events-none opacity-40 theme-dot-pattern" />
+
+      <div className="relative max-w-3xl mx-auto space-y-6">
+        <Link
+          to="/driver/rides"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to my rides</span>
         </Link>
-        <h1 className="text-2xl font-bold text-slate-900 mt-2 mb-2">Publish a Single-Day Ride</h1>
-        <p className="text-sm text-slate-500 mb-6">
-          Offer a one-time ride for exams, weekend commutes, tech fests, or special campus events.
-        </p>
+
+        <div>
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-secondary/80 text-primary border border-border text-xs font-mono mb-2">
+            <Car className="w-3.5 h-3.5" />
+            <span>AD-HOC COMMUTE</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-foreground tracking-tight">
+            Publish a Single-Day Ride
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Offer a one-time ride for exams, lab days, weekend trips, or special campus events.
+          </p>
+        </div>
 
         {status.error && (
-          <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
-            {status.error}
+          <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-[var(--radius)] text-xs font-medium flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{status.error}</span>
           </div>
         )}
         {status.success && (
-          <div className="mb-4 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-            {status.success}
+          <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-[var(--radius)] text-xs font-medium flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{status.success}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-6">
+        <form onSubmit={handleSubmit} className="bg-card border border-border rounded-[var(--radius)] p-6 sm:p-7 shadow-xs space-y-6">
           {/* Vehicle Selection */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
               Select Vehicle
             </label>
             <select
               required
               value={formData.vehicleId}
               onChange={(e) => setFormData({ ...formData, vehicleId: e.target.value })}
-              className="w-full border border-slate-300 rounded-md p-2.5 text-sm bg-white"
+              className="w-full bg-background border border-border rounded-[var(--radius)] p-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
               disabled={approvedVehicles.length === 0}
             >
               <option value="">-- Choose an approved vehicle --</option>
@@ -148,7 +178,8 @@ function CreateOneOffRide() {
           {/* Date & Departure Time */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-primary" />
                 Ride Date
               </label>
               <input
@@ -156,12 +187,13 @@ function CreateOneOffRide() {
                 required
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full border border-slate-300 rounded-md p-2 text-sm"
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2 text-sm font-mono text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-primary" />
                 Departure Time
               </label>
               <input
@@ -169,12 +201,13 @@ function CreateOneOffRide() {
                 required
                 value={formData.departureTime}
                 onChange={(e) => setFormData({ ...formData, departureTime: e.target.value })}
-                className="w-full border border-slate-300 rounded-md p-2 text-sm"
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2 text-sm font-mono text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+                <Users className="w-3 h-3 text-primary" />
                 Available Seats
               </label>
               <input
@@ -184,34 +217,38 @@ function CreateOneOffRide() {
                 required
                 value={formData.totalSeats}
                 onChange={(e) => setFormData({ ...formData, totalSeats: e.target.value })}
-                className="w-full border border-slate-300 rounded-md p-2 text-sm"
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2 text-sm font-mono text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
               />
             </div>
           </div>
 
           {/* Origin & Destination pickers */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Origin */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-indigo-700">Origin Point</span>
+            <div className="p-4 bg-secondary/30 border border-border rounded-[var(--radius)] space-y-3">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5" />
+                Origin Point
+              </span>
               <div className="flex gap-2">
                 <input
                   required
                   placeholder="Search starting place..."
                   value={originQuery}
                   onChange={(e) => setOriginQuery(e.target.value)}
-                  className="flex-1 border border-slate-300 rounded-md p-2 text-sm bg-white"
+                  className="flex-1 bg-background border border-border rounded-[var(--radius)] p-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => searchPlace(originQuery, 'origin')}
-                  className="bg-indigo-600 text-white text-xs px-3 py-2 rounded-md font-semibold cursor-pointer"
+                  className="text-xs h-9 px-3 border-border"
                 >
-                  Search
-                </button>
+                  <Search className="w-3.5 h-3.5" />
+                </Button>
               </div>
               {originResults.length > 0 && (
-                <div className="bg-white border rounded shadow-md max-h-36 overflow-y-auto divide-y">
+                <div className="bg-card border border-border rounded-[var(--radius)] shadow-lg max-h-36 overflow-y-auto divide-y divide-border/60">
                   {originResults.map((item, idx) => (
                     <div
                       key={idx}
@@ -220,14 +257,14 @@ function CreateOneOffRide() {
                         setOriginQuery(item.display_name.split(',')[0]);
                         setOriginResults([]);
                       }}
-                      className="p-2 text-xs hover:bg-indigo-50 cursor-pointer"
+                      className="p-2 text-xs text-foreground hover:bg-secondary cursor-pointer transition"
                     >
                       {item.display_name}
                     </div>
                   ))}
                 </div>
               )}
-              <div className="flex flex-wrap gap-1 pt-1">
+              <div className="flex flex-wrap gap-1 pt-1 border-t border-border/80">
                 {POPULAR_LOCATIONS.slice(0, 3).map((loc) => (
                   <button
                     type="button"
@@ -236,7 +273,7 @@ function CreateOneOffRide() {
                       setOrigin(loc);
                       setOriginQuery(loc.label);
                     }}
-                    className="text-[10px] bg-white border px-2 py-0.5 rounded text-slate-700 hover:bg-slate-100 cursor-pointer"
+                    className="text-[10px] font-mono bg-card border border-border px-2 py-0.5 rounded text-foreground hover:bg-secondary cursor-pointer transition"
                   >
                     {loc.label.split(' ')[0]}
                   </button>
@@ -245,26 +282,30 @@ function CreateOneOffRide() {
             </div>
 
             {/* Destination */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">Destination Point</span>
+            <div className="p-4 bg-secondary/30 border border-border rounded-[var(--radius)] space-y-3">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5" />
+                Destination Point
+              </span>
               <div className="flex gap-2">
                 <input
                   required
                   placeholder="Search campus or destination..."
                   value={destQuery}
                   onChange={(e) => setDestQuery(e.target.value)}
-                  className="flex-1 border border-slate-300 rounded-md p-2 text-sm bg-white"
+                  className="flex-1 bg-background border border-border rounded-[var(--radius)] p-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => searchPlace(destQuery, 'dest')}
-                  className="bg-emerald-600 text-white text-xs px-3 py-2 rounded-md font-semibold cursor-pointer"
+                  className="text-xs h-9 px-3 border-border"
                 >
-                  Search
-                </button>
+                  <Search className="w-3.5 h-3.5" />
+                </Button>
               </div>
               {destResults.length > 0 && (
-                <div className="bg-white border rounded shadow-md max-h-36 overflow-y-auto divide-y">
+                <div className="bg-card border border-border rounded-[var(--radius)] shadow-lg max-h-36 overflow-y-auto divide-y divide-border/60">
                   {destResults.map((item, idx) => (
                     <div
                       key={idx}
@@ -273,14 +314,14 @@ function CreateOneOffRide() {
                         setDestQuery(item.display_name.split(',')[0]);
                         setDestResults([]);
                       }}
-                      className="p-2 text-xs hover:bg-emerald-50 cursor-pointer"
+                      className="p-2 text-xs text-foreground hover:bg-secondary cursor-pointer transition"
                     >
                       {item.display_name}
                     </div>
                   ))}
                 </div>
               )}
-              <div className="flex flex-wrap gap-1 pt-1">
+              <div className="flex flex-wrap gap-1 pt-1 border-t border-border/80">
                 {POPULAR_LOCATIONS.map((loc) => (
                   <button
                     type="button"
@@ -289,7 +330,7 @@ function CreateOneOffRide() {
                       setDestination(loc);
                       setDestQuery(loc.label);
                     }}
-                    className="text-[10px] bg-white border px-2 py-0.5 rounded text-slate-700 hover:bg-slate-100 cursor-pointer"
+                    className="text-[10px] font-mono bg-card border border-border px-2 py-0.5 rounded text-foreground hover:bg-secondary cursor-pointer transition"
                   >
                     {loc.label.split(' ')[0]}
                   </button>
@@ -298,13 +339,13 @@ function CreateOneOffRide() {
             </div>
           </div>
 
-          <button
+          <Button
             type="submit"
             disabled={submitting || approvedVehicles.length === 0}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg text-sm transition cursor-pointer shadow-xs"
+            className="w-full bg-primary hover:bg-[#832323] text-primary-foreground py-3 text-sm font-semibold shadow-xs"
           >
             {submitting ? 'Calculating Cost & Publishing...' : 'Publish Single-Day Ride'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

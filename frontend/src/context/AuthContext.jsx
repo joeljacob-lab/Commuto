@@ -67,7 +67,6 @@ export const AuthProvider = ({ children }) => {
     verifyToken();
     // Deliberately only re-runs if the token itself changes (e.g. after
     // login/logout), not on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const value = {

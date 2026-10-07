@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { topUpWallet } from '../services/api';
 import commutoLogo from '../assets/Commuto_ emblem.png';
+import { Button } from './ui/button';
 
 const MockPaymentGatewayModal = ({ isOpen, onClose, initialAmount = '200', onSuccess }) => {
   const [amount, setAmount] = useState(initialAmount);
@@ -32,11 +33,10 @@ const MockPaymentGatewayModal = ({ isOpen, onClose, initialAmount = '200', onSuc
   const [statusMessage, setStatusMessage] = useState('');
   const [qrTimer, setQrTimer] = useState(299);
 
-  
-const handleClose = () => {
+  const handleClose = () => {
     setGatewayStep('input');
     onClose();
-}
+  };
 
   // QR Countdown Timer
   useEffect(() => {
@@ -65,10 +65,10 @@ const handleClose = () => {
 
   const executePayment = async (paymentMethodLabel) => {
     setGatewayStep('processing');
-    setStatusMessage('Connecting with bank server...');
+    setStatusMessage('Connecting with campus bank server...');
 
     setTimeout(() => {
-      setStatusMessage('Authorizing mock funds...');
+      setStatusMessage('Authorizing mock escrow funds...');
     }, 800);
 
     setTimeout(async () => {
@@ -98,41 +98,41 @@ const handleClose = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+      <div className="bg-card rounded-[var(--radius)] max-w-md w-full shadow-2xl border border-border overflow-hidden flex flex-col">
         {/* Gateway Brand Header */}
-        <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
+        <div className="bg-primary px-6 py-4 text-primary-foreground flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img
               src={commutoLogo}
               alt="Commuto Pay"
-              className="w-8 h-8 rounded-lg object-contain bg-white/10 p-0.5"
+              className="w-8 h-8 rounded-[var(--radius)] object-contain bg-white/10 p-0.5"
             />
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm tracking-tight">Commuto Pay</span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-mono px-1.5 py-0.2 rounded border border-emerald-500/30">
-                  TEST GATEWAY
+                <span className="font-serif font-bold text-sm tracking-tight">Commuto Pay</span>
+                <span className="text-[10px] bg-white/20 text-white font-mono px-1.5 py-0.2 rounded border border-white/30">
+                  TEST ESCROW
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Lock className="w-2.5 h-2.5 text-emerald-400" />
-                256-bit Secure Campus Escrow
+              <p className="text-[11px] text-white/80 flex items-center gap-1 font-mono">
+                <Lock className="w-2.5 h-2.5" />
+                Campus Verified Peer Escrow
               </p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="p-1 rounded-md text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Order Summary Ribbon */}
-        <div className="bg-indigo-50/70 border-b border-indigo-100 px-6 py-3 flex items-center justify-between">
-          <span className="text-xs font-semibold text-indigo-950">Top-up Escrow Balance</span>
-          <span className="text-xl font-black text-indigo-900">₹{amount}</span>
+        <div className="bg-secondary/60 border-b border-border px-6 py-3 flex items-center justify-between">
+          <span className="text-xs font-mono font-semibold text-foreground">Top-up Escrow Balance</span>
+          <span className="text-xl font-mono font-bold text-primary">₹{amount}</span>
         </div>
 
         {/* BODY: STEP 1 - INPUT */}
@@ -140,7 +140,7 @@ const handleClose = () => {
           <div className="p-6 space-y-5">
             {/* Quick Amount Selector */}
             <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+              <label className="text-[11px] font-mono font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
                 Select Amount
               </label>
               <div className="grid grid-cols-4 gap-2">
@@ -149,10 +149,10 @@ const handleClose = () => {
                     key={amt}
                     type="button"
                     onClick={() => setAmount(amt)}
-                    className={`py-1.5 text-xs font-bold rounded-lg border transition cursor-pointer ${
+                    className={`py-1.5 text-xs font-mono font-bold rounded-[var(--radius)] border transition cursor-pointer ${
                       amount === amt
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                        : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                        ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                        : 'border-border text-foreground hover:bg-secondary/60'
                     }`}
                   >
                     ₹{amt}
@@ -162,14 +162,14 @@ const handleClose = () => {
             </div>
 
             {/* Method Tabs */}
-            <div className="flex border-b border-slate-200">
+            <div className="flex border-b border-border">
               <button
                 type="button"
                 onClick={() => setActiveTab('upi')}
-                className={`flex-1 pb-2 text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition cursor-pointer ${
+                className={`flex-1 pb-2 text-xs font-mono font-bold flex items-center justify-center gap-1.5 border-b-2 transition cursor-pointer ${
                   activeTab === 'upi'
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <Smartphone className="w-3.5 h-3.5" />
@@ -178,10 +178,10 @@ const handleClose = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('card')}
-                className={`flex-1 pb-2 text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition cursor-pointer ${
+                className={`flex-1 pb-2 text-xs font-mono font-bold flex items-center justify-center gap-1.5 border-b-2 transition cursor-pointer ${
                   activeTab === 'card'
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <CreditCard className="w-3.5 h-3.5" />
@@ -190,10 +190,10 @@ const handleClose = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('netbanking')}
-                className={`flex-1 pb-2 text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition cursor-pointer ${
+                className={`flex-1 pb-2 text-xs font-mono font-bold flex items-center justify-center gap-1.5 border-b-2 transition cursor-pointer ${
                   activeTab === 'netbanking'
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <Building className="w-3.5 h-3.5" />
@@ -208,10 +208,10 @@ const handleClose = () => {
                   <button
                     type="button"
                     onClick={() => setUpiMethod('vpa')}
-                    className={`flex-1 py-1.5 text-xs font-semibold rounded-md border cursor-pointer ${
+                    className={`flex-1 py-1.5 text-xs font-mono font-semibold rounded-[var(--radius)] border cursor-pointer ${
                       upiMethod === 'vpa'
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'border-slate-200 text-slate-600'
+                        ? 'bg-foreground text-background border-foreground'
+                        : 'border-border text-muted-foreground hover:bg-secondary'
                     }`}
                   >
                     UPI ID / VPA
@@ -219,10 +219,10 @@ const handleClose = () => {
                   <button
                     type="button"
                     onClick={() => setUpiMethod('qr')}
-                    className={`flex-1 py-1.5 text-xs font-semibold rounded-md border flex items-center justify-center gap-1 cursor-pointer ${
+                    className={`flex-1 py-1.5 text-xs font-mono font-semibold rounded-[var(--radius)] border flex items-center justify-center gap-1 cursor-pointer ${
                       upiMethod === 'qr'
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'border-slate-200 text-slate-600'
+                        ? 'bg-foreground text-background border-foreground'
+                        : 'border-border text-muted-foreground hover:bg-secondary'
                     }`}
                   >
                     <QrCode className="w-3.5 h-3.5" />
@@ -232,7 +232,7 @@ const handleClose = () => {
 
                 {upiMethod === 'vpa' ? (
                   <div>
-                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                    <label className="text-[11px] font-mono font-semibold text-muted-foreground block mb-1">
                       Enter UPI VPA ID
                     </label>
                     <input
@@ -240,7 +240,7 @@ const handleClose = () => {
                       value={upiId}
                       onChange={(e) => setUpiId(e.target.value)}
                       placeholder="username@okhdfcbank"
-                      className="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full text-xs font-mono bg-background border border-border rounded-[var(--radius)] p-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     />
                     <div className="flex gap-1.5 mt-2">
                       {['@oksbi', '@paytm', '@okaxis'].map((handle) => (
@@ -248,7 +248,7 @@ const handleClose = () => {
                           key={handle}
                           type="button"
                           onClick={() => setUpiId(`student${handle}`)}
-                          className="text-[10px] font-mono text-slate-500 hover:text-indigo-600 bg-slate-100 px-2 py-0.5 rounded cursor-pointer"
+                          className="text-[10px] font-mono text-muted-foreground hover:text-primary bg-secondary/80 border border-border px-2 py-0.5 rounded cursor-pointer transition"
                         >
                           student{handle}
                         </button>
@@ -257,14 +257,13 @@ const handleClose = () => {
                   </div>
                 ) : (
                   <div className="text-center py-2 space-y-2">
-                    <div className="inline-block p-3 bg-white border-2 border-slate-900 rounded-xl shadow-xs">
-                      {/* SVG Mock QR Code */}
-                      <svg className="w-32 h-32 mx-auto" viewBox="0 0 100 100" fill="currentColor">
+                    <div className="inline-block p-3 bg-white border border-border rounded-[var(--radius)] shadow-xs">
+                      <svg className="w-32 h-32 mx-auto text-slate-900" viewBox="0 0 100 100" fill="currentColor">
                         <path d="M0 0h30v30H0zM40 0h20v10H40zM70 0h30v30H70zM10 10h10v10H10zM80 10h10v10H80zM0 40h10v20H0zM20 40h20v10H20zM50 40h20v20H50zM80 40h20v10H80zM0 70h30v30H0zM10 80h10v10H10zM40 70h10v30H40zM60 80h20v10H60zM70 70h10v10H70zM90 90h10v10H90z"/>
                       </svg>
                     </div>
-                    <p className="text-xs text-slate-600 font-medium">Scan with GPay, PhonePe, or Paytm</p>
-                    <p className="text-[11px] text-amber-600 font-mono font-bold">Expires in {formatTimer(qrTimer)}</p>
+                    <p className="text-xs text-foreground font-medium">Scan with GPay, PhonePe, or Paytm</p>
+                    <p className="text-[11px] text-primary font-mono font-bold">Expires in {formatTimer(qrTimer)}</p>
                   </div>
                 )}
               </div>
@@ -274,30 +273,30 @@ const handleClose = () => {
             {activeTab === 'card' && (
               <div className="space-y-3">
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                  <label className="text-[11px] font-mono font-semibold text-muted-foreground block mb-1">
                     Card Number
                   </label>
                   <input
                     type="text"
                     value={cardNumber}
                     onChange={(e) => setCardNumber(e.target.value)}
-                    className="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800"
+                    className="w-full text-xs font-mono bg-background border border-border rounded-[var(--radius)] p-2.5 text-foreground"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                    <label className="text-[11px] font-mono font-semibold text-muted-foreground block mb-1">
                       Expiry (MM/YY)
                     </label>
                     <input
                       type="text"
                       value={cardExpiry}
                       onChange={(e) => setCardExpiry(e.target.value)}
-                      className="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800"
+                      className="w-full text-xs font-mono bg-background border border-border rounded-[var(--radius)] p-2.5 text-foreground"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                    <label className="text-[11px] font-mono font-semibold text-muted-foreground block mb-1">
                       CVV
                     </label>
                     <input
@@ -305,18 +304,18 @@ const handleClose = () => {
                       maxLength="3"
                       value={cardCvv}
                       onChange={(e) => setCardCvv(e.target.value)}
-                      className="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800"
+                      className="w-full text-xs font-mono bg-background border border-border rounded-[var(--radius)] p-2.5 text-foreground"
                     />
                   </div>
                 </div>
-                <p className="text-[10px] text-slate-400">Supported: Visa, MasterCard, RuPay (Test card numbers pre-filled)</p>
+                <p className="text-[10px] text-muted-foreground font-mono">Supported: Visa, MasterCard, RuPay (Test values prefilled)</p>
               </div>
             )}
 
             {/* TAB CONTENT: NETBANKING */}
             {activeTab === 'netbanking' && (
               <div className="space-y-2">
-                <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                <label className="text-[11px] font-mono font-semibold text-muted-foreground block mb-1">
                   Popular Campus Banks
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -330,10 +329,10 @@ const handleClose = () => {
                       key={bank.id}
                       type="button"
                       onClick={() => setSelectedBank(bank.id)}
-                      className={`p-2.5 text-left rounded-lg border text-xs font-semibold transition cursor-pointer ${
+                      className={`p-2.5 text-left rounded-[var(--radius)] border text-xs font-medium transition cursor-pointer ${
                         selectedBank === bank.id
-                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700'
-                          : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                          ? 'border-primary bg-secondary text-primary font-bold'
+                          : 'border-border text-foreground hover:bg-secondary/40'
                       }`}
                     >
                       {bank.name}
@@ -344,32 +343,32 @@ const handleClose = () => {
             )}
 
             {/* Pay Button */}
-            <button
+            <Button
               type="button"
               onClick={handleStartPayment}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3 bg-primary hover:bg-[#832323] text-primary-foreground font-bold text-sm rounded-[var(--radius)] shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
               Pay ₹{amount} Securely
-            </button>
+            </Button>
           </div>
         )}
 
         {/* BODY: STEP 2 - CARD 3D SECURE OTP SIMULATION */}
         {gatewayStep === 'otp' && (
           <div className="p-6 space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-900 flex items-start gap-2">
-              <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <div className="bg-secondary/60 border border-border rounded-[var(--radius)] p-3 text-xs text-foreground flex items-start gap-2">
+              <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <div>
                 <strong>3D Secure Banking Verification</strong>
-                <p className="text-[11px] text-blue-700 mt-0.5">
+                <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
                   An OTP has been simulated for your college test account.
                 </p>
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">
+              <label className="text-xs font-mono font-semibold text-foreground block mb-1">
                 Enter 6-Digit Bank OTP
               </label>
               <input
@@ -377,28 +376,29 @@ const handleClose = () => {
                 maxLength="6"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
-                className="w-full text-center tracking-widest text-lg font-mono font-bold bg-slate-50 border border-slate-300 rounded-lg py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full text-center tracking-widest text-lg font-mono font-bold bg-background border border-border rounded-[var(--radius)] py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
               />
-              <span className="text-[11px] text-slate-400 text-center block mt-1">
+              <span className="text-[11px] text-muted-foreground font-mono text-center block mt-1">
                 Demo code: <strong>123456</strong>
               </span>
             </div>
 
             <div className="flex gap-2 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setGatewayStep('input')}
-                className="flex-1 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                className="flex-1 py-2 text-xs border-border text-foreground hover:bg-secondary"
               >
                 Back
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={handleVerifyOtp}
-                className="flex-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-sm cursor-pointer"
+                className="flex-2 py-2.5 bg-[#1b6a43] hover:bg-[#155334] text-white font-bold text-xs shadow-xs"
               >
                 Confirm &amp; Authorize ₹{amount}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -406,26 +406,26 @@ const handleClose = () => {
         {/* BODY: STEP 3 - PROCESSING */}
         {gatewayStep === 'processing' && (
           <div className="p-12 text-center space-y-3">
-            <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mx-auto" />
-            <p className="text-sm font-bold text-slate-800">{statusMessage}</p>
-            <p className="text-xs text-slate-400">Do not refresh or close this window.</p>
+            <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
+            <p className="text-sm font-serif font-bold text-foreground">{statusMessage}</p>
+            <p className="text-xs text-muted-foreground font-mono">Do not refresh or close this window.</p>
           </div>
         )}
 
         {/* BODY: STEP 4 - SUCCESS */}
         {gatewayStep === 'success' && (
           <div className="p-10 text-center space-y-2">
-            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
-            <h4 className="text-base font-bold text-slate-900">Payment Successful!</h4>
-            <p className="text-xs text-slate-600">
+            <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto animate-bounce" />
+            <h4 className="text-base font-serif font-bold text-foreground">Payment Successful!</h4>
+            <p className="text-xs text-muted-foreground font-mono">
               ₹{amount} has been added to your spendable Escrow Wallet.
             </p>
           </div>
         )}
 
         {/* Footer Guarantee */}
-        <div className="bg-slate-50 border-t border-slate-100 px-6 py-2.5 text-center text-[10px] text-slate-400 flex items-center justify-center gap-1">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+        <div className="bg-secondary/30 border-t border-border px-6 py-2.5 text-center text-[10px] text-muted-foreground font-mono flex items-center justify-center gap-1">
+          <ShieldCheck className="w-3.5 h-3.5 text-primary" />
           <span>Commuto Internal Escrow • Automated Fair Cost Sharing</span>
         </div>
       </div>

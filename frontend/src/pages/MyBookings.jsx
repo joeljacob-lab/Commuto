@@ -12,6 +12,7 @@ import {
   Phone
 } from 'lucide-react';
 import { getMyBookings, cancelBooking, createReview, createReport } from '../services/api';
+import { Button } from '../components/ui/button';
 
 const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
@@ -99,20 +100,20 @@ const MyBookings = () => {
 
     try {
       setReportSubmitting(true);
-      const against = typeof selectedBookingForReport.rideId?.driverId === 'object'
+      const againstUserId = typeof selectedBookingForReport.rideId?.driverId === 'object'
         ? selectedBookingForReport.rideId.driverId._id
         : selectedBookingForReport.rideId?.driverId;
 
       await createReport({
-        against,
         rideId: selectedBookingForReport.rideId._id,
+        againstUserId,
         description: reportDescription.trim(),
       });
-      alert('Report submitted to administrators.');
+      alert('Safety incident report filed with campus moderation queue.');
       setReportModalOpen(false);
       setReportDescription('');
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to submit report');
+      alert(error.response?.data?.message || 'Failed to file safety report');
     } finally {
       setReportSubmitting(false);
     }
@@ -122,25 +123,25 @@ const MyBookings = () => {
     switch (status) {
       case 'confirmed':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            <CheckCircle2 className="w-3 h-3" /> Confirmed Pass
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-secondary text-primary border border-border">
+            <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> Confirmed Pass
           </span>
         );
       case 'completed':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
-            <CheckCircle2 className="w-3 h-3" /> Trip Completed
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-muted text-foreground border border-border">
+            <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> Trip Completed
           </span>
         );
       case 'cancelled':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-            <XCircle className="w-3 h-3" /> Cancelled ({holdStatus || 'processed'})
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+            <XCircle className="w-3.5 h-3.5" /> Cancelled ({holdStatus || 'processed'})
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-secondary text-primary border border-border">
             {status}
           </span>
         );
@@ -148,31 +149,37 @@ const MyBookings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background py-10 px-4 sm:px-6 lg:px-8 relative selection:bg-accent selection:text-accent-foreground">
+      {/* Subtle Dot Pattern */}
+      <div className="absolute inset-0 theme-dot-pattern opacity-40 pointer-events-none" />
+
+      <div className="max-w-4xl mx-auto space-y-8 relative z-10">
+        
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <Ticket className="w-7 h-7 text-indigo-600" />
+            <span className="text-xs uppercase font-mono font-bold tracking-wider text-primary bg-secondary px-3 py-1 rounded-full border border-border">
+              Passes &amp; Escrow Holds
+            </span>
+            <h1 className="text-3xl font-serif font-bold text-foreground mt-3 tracking-tight flex items-center gap-2.5">
+              <Ticket className="w-7 h-7 text-primary" />
               My Commute Bookings
             </h1>
-            <p className="text-sm text-slate-600 mt-1">
-              Active tickets, Equal Split fare locks, and trip history.
+            <p className="text-sm text-muted-foreground mt-1">
+              Active tickets, Equal Split fare locks, and verified trip history.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link
-              to="/search-rides"
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-xs"
-            >
-              <Search className="w-3.5 h-3.5" />
-              Book Another Ride
+          <div className="flex items-center gap-2.5">
+            <Link to="/search-rides">
+              <Button size="sm" className="gap-2 font-semibold">
+                <Search className="w-3.5 h-3.5" />
+                Book Another Ride
+              </Button>
             </Link>
             <button
               onClick={() => setRefreshKey((k) => k + 1)}
-              className="p-2 bg-white border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 shadow-xs cursor-pointer"
+              className="p-2 bg-card border border-border rounded-[var(--radius)] text-muted-foreground hover:text-foreground hover:bg-muted transition cursor-pointer shadow-xs"
               title="Refresh"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -182,22 +189,23 @@ const MyBookings = () => {
 
         {/* Bookings Feed */}
         {loading ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500 text-sm">
+          <div className="bg-card rounded-[var(--radius)] border border-border p-12 text-center text-muted-foreground text-sm font-medium">
             Loading your bookings...
           </div>
         ) : bookings.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-            <Ticket className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-slate-800">No bookings yet</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Find classmates traveling your corridor and split fuel costs.
+          <div className="bg-card rounded-[var(--radius)] border border-border p-12 text-center space-y-3">
+            <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center text-primary mx-auto mb-2 border border-border">
+              <Ticket className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-serif font-bold text-foreground">No bookings yet</h3>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+              Find classmates traveling your corridor every day and split daily fuel costs fairly with the Equal Split Model.
             </p>
-            <Link
-              to="/search-rides"
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg shadow-xs hover:bg-indigo-700 transition"
-            >
-              <Search className="w-3.5 h-3.5" />
-              Search Commutes Now
+            <Link to="/search-rides" className="inline-block pt-2">
+              <Button size="default" className="gap-2 font-semibold">
+                <Search className="w-4 h-4" />
+                Search Commutes Now
+              </Button>
             </Link>
           </div>
         ) : (
@@ -217,86 +225,86 @@ const MyBookings = () => {
               return (
                 <div
                   key={booking._id}
-                  className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs transition hover:shadow-sm"
+                  className="bg-card rounded-[var(--radius)] border border-border p-6 shadow-xs transition hover:border-primary/40 space-y-4"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border/70 gap-2">
                     <div className="flex items-center gap-3">
                       {getStatusBadge(booking.status, booking.holdStatus)}
-                      <span className="text-xs font-bold text-slate-700">
+                      <span className="text-xs font-semibold text-foreground font-mono">
                         {ride.date ? new Date(ride.date).toLocaleDateString() : 'Trip Date'} at {ride.departureTime || 'Scheduled'}
                       </span>
                     </div>
 
-                    <div className="text-xs text-slate-500 font-mono">
+                    <div className="text-xs text-muted-foreground font-mono">
                       Booking #{String(booking._id || '').slice(-6).toUpperCase()}
                     </div>
                   </div>
 
                   {/* Route & Stop Details */}
-                  <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <div className="flex items-start gap-2 mb-2">
-                        <MapPin className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                  <div className="py-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2.5">
+                        <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                         <div>
-                          <span className="text-[10px] font-bold uppercase text-slate-400 block">Origin / Pickup</span>
-                          <span className="text-xs font-bold text-slate-800">{ride.origin?.label || 'Pickup point'}</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Origin / Pickup</span>
+                          <span className="text-xs font-semibold text-foreground">{ride.origin?.label || 'Pickup point'}</span>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-2">
-                        <MapPin className="w-4 h-4 text-rose-600 mt-0.5 shrink-0" />
+                      <div className="flex items-start gap-2.5">
+                        <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                         <div>
-                          <span className="text-[10px] font-bold uppercase text-slate-400 block">Destination</span>
-                          <span className="text-xs font-bold text-slate-800">{ride.destination?.label || 'College Campus'}</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Destination</span>
+                          <span className="text-xs font-semibold text-foreground">{ride.destination?.label || 'College Campus'}</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Driver & Vehicle Card with Safe Phone Display */}
-                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 text-xs space-y-1.5">
+                    <div className="bg-background rounded-lg p-3.5 border border-border text-xs space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-700">Driver</span>
-                        <span className="font-bold text-slate-900">{driverName || 'Driver'}</span>
+                        <span className="text-muted-foreground">Driver</span>
+                        <span className="font-bold text-foreground">{driverName || 'Driver'}</span>
                       </div>
 
                       {/* Clickable Driver Phone Badge */}
                       {driverPhone && (
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-slate-700">Contact / Phone</span>
+                          <span className="text-muted-foreground">Contact</span>
                           <a
                             href={`tel:${driverPhone}`}
-                            className="inline-flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 transition cursor-pointer"
+                            className="inline-flex items-center gap-1 font-mono font-bold text-primary bg-secondary px-2 py-0.5 rounded border border-border transition hover:scale-105"
                             title="Call Driver"
                           >
-                            <Phone className="w-3 h-3 text-indigo-600" />
+                            <Phone className="w-3 h-3 text-primary" />
                             <span>{driverPhone}</span>
                           </a>
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between text-slate-500">
+                      <div className="flex items-center justify-between text-muted-foreground">
                         <span>Vehicle</span>
-                        <span className="font-mono">{vehicleDisplay}</span>
+                        <span className="font-mono text-foreground font-medium">{vehicleDisplay}</span>
                       </div>
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-200">
-                        <span className="text-slate-600">Fare Split</span>
-                        <span className="font-bold text-indigo-700">
+                      <div className="flex items-center justify-between pt-1.5 border-t border-border">
+                        <span className="text-muted-foreground">Fare Split</span>
+                        <span className="font-mono font-black text-primary text-sm">
                           ₹{booking.holdAmountFinal || booking.holdAmountProvisional || 0}
-                          {isPastLock && <span className="text-[10px] text-slate-400 ml-1 font-normal">(Finalized)</span>}
+                          {isPastLock && <span className="text-[10px] text-muted-foreground ml-1 font-normal font-sans">(Finalized)</span>}
                         </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-xs text-slate-500">
+                  <div className="pt-3 border-t border-border/70 flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-xs font-mono">
                       {isPastLock ? (
-                        <span className="text-amber-700 font-medium">
+                        <span className="text-primary font-medium">
                           🔒 Roster locked. Equal Split finalized.
                         </span>
                       ) : (
-                        <span className="text-emerald-700 font-medium">
+                        <span className="text-foreground font-medium">
                           🔓 Free cancellation eligible until 9:00 PM lock.
                         </span>
                       )}
@@ -304,41 +312,44 @@ const MyBookings = () => {
 
                     <div className="flex items-center gap-2">
                       {booking.status === 'confirmed' && (
-                        <button
-                          type="button"
+                        <Button
+                          variant="destructive"
+                          size="sm"
                           onClick={() => handleCancelBooking(booking)}
                           disabled={cancellingId === booking._id}
-                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg border border-rose-200 transition cursor-pointer"
+                          className="text-xs font-bold"
                         >
                           {cancellingId === booking._id ? 'Cancelling...' : 'Cancel Seat'}
-                        </button>
+                        </Button>
                       )}
 
                       {booking.status === 'completed' && (
                         <>
-                          <button
-                            type="button"
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={() => {
                               setSelectedBookingForReview(booking);
                               setReviewModalOpen(true);
                             }}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 transition cursor-pointer"
+                            className="gap-1.5 text-xs font-bold"
                           >
-                            <Star className="w-3.5 h-3.5" />
+                            <Star className="w-3.5 h-3.5 text-primary fill-current" />
                             Rate Driver
-                          </button>
+                          </Button>
 
-                          <button
-                            type="button"
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => {
                               setSelectedBookingForReport(booking);
                               setReportModalOpen(true);
                             }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-lg border border-slate-200 transition cursor-pointer"
+                            className="gap-1.5 text-xs font-medium"
                           >
-                            <ShieldAlert className="w-3.5 h-3.5 text-slate-500" />
+                            <ShieldAlert className="w-3.5 h-3.5 text-destructive" />
                             Report
-                          </button>
+                          </Button>
                         </>
                       )}
                     </div>
@@ -352,16 +363,18 @@ const MyBookings = () => {
 
       {/* Mutual Review Modal */}
       {reviewModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-2xs p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100">
-            <h3 className="text-base font-bold text-slate-900">Rate Your Commute</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Mutual ratings strengthen our campus trust graph.
-            </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-card rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-border space-y-4">
+            <div>
+              <h3 className="text-base font-serif font-bold text-foreground">Rate Your Commute</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Mutual ratings strengthen our campus pairwise trust graph.
+              </p>
+            </div>
 
-            <form onSubmit={handleReviewSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleReviewSubmit} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                <label className="text-xs font-semibold text-foreground block mb-2">
                   Rating (1 to 5 Stars)
                 </label>
                 <div className="flex gap-2">
@@ -370,10 +383,10 @@ const MyBookings = () => {
                       key={star}
                       type="button"
                       onClick={() => setRating(star)}
-                      className={`p-2 rounded-lg border transition cursor-pointer ${
+                      className={`p-2 rounded-[var(--radius)] border transition cursor-pointer ${
                         rating >= star
-                          ? 'bg-amber-50 border-amber-400 text-amber-500'
-                          : 'border-slate-200 text-slate-300'
+                          ? 'bg-secondary border-primary/40 text-primary'
+                          : 'border-border text-muted-foreground/30 hover:border-border/80'
                       }`}
                     >
                       <Star className="w-5 h-5 fill-current" />
@@ -383,33 +396,35 @@ const MyBookings = () => {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  Optional Comment
+                <label className="text-xs font-semibold text-foreground block mb-1.5">
+                  Optional Feedback
                 </label>
                 <textarea
                   rows="3"
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder="On-time pickup, polite, smooth driving..."
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-xs bg-background border border-border rounded-[var(--radius)] p-2.5 text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setReviewModalOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  size="sm"
                   disabled={reviewSubmitting}
-                  className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs cursor-pointer"
+                  className="font-bold"
                 >
                   {reviewSubmitting ? 'Submitting...' : 'Submit Rating'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -418,20 +433,22 @@ const MyBookings = () => {
 
       {/* Safety Report Modal */}
       {reportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-2xs p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100">
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
-              <ShieldAlert className="w-5 h-5 text-rose-600" />
-              Report Trip Issue
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Complaints are reviewed by college administrators.
-            </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-card rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-border space-y-4">
+            <div>
+              <h3 className="text-base font-serif font-bold text-foreground flex items-center gap-1.5">
+                <ShieldAlert className="w-5 h-5 text-destructive" />
+                Report Trip Issue
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Complaints are reviewed by college administrators.
+              </p>
+            </div>
 
-            <form onSubmit={handleReportSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleReportSubmit} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  Description of Incident (min 10 chars)
+                <label className="text-xs font-semibold text-foreground block mb-1.5">
+                  Incident Description (min 10 chars)
                 </label>
                 <textarea
                   rows="4"
@@ -440,25 +457,28 @@ const MyBookings = () => {
                   value={reportDescription}
                   onChange={(e) => setReportDescription(e.target.value)}
                   placeholder="Describe what occurred (rash driving, no-show, harassment, etc.)..."
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  className="w-full text-xs bg-background border border-border rounded-[var(--radius)] p-2.5 text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-destructive"
                 />
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setReportModalOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="destructive"
+                  size="sm"
                   disabled={reportSubmitting || reportDescription.trim().length < 10}
-                  className="px-4 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs cursor-pointer disabled:opacity-50"
+                  className="font-bold"
                 >
                   {reportSubmitting ? 'Submitting...' : 'File Report'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

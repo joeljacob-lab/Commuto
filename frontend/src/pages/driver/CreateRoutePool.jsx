@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { 
+  GitFork, 
+  ArrowLeft, 
+  MapPin, 
+  Calendar, 
+  Clock, 
+  Users, 
+  AlertCircle, 
+  CheckCircle2, 
+  Search,
+  Navigation
+} from 'lucide-react';
+import { Button } from '../../components/ui/button';
 import { getMyVehicles, createRoutePool } from '../../services/api';
 
 const DAYS_OF_WEEK = [
@@ -111,7 +124,7 @@ function CreateRoutePool() {
     }
   };
 
-  // --- Real-time typing debounce for Origin (No cascading renders) ---
+  // Real-time typing debounce for Origin
   useEffect(() => {
     if (originQuery.trim().length < 3 || originQuery === origin.label) {
       return;
@@ -124,7 +137,7 @@ function CreateRoutePool() {
     return () => clearTimeout(timer);
   }, [originQuery, origin.label]);
 
-  // --- Real-time typing debounce for Destination (No cascading renders) ---
+  // Real-time typing debounce for Destination
   useEffect(() => {
     if (destQuery.trim().length < 3 || destQuery === destination.label) {
       return;
@@ -222,72 +235,103 @@ function CreateRoutePool() {
   const approvedVehicles = vehicles.filter((v) => v.verificationStatus === 'approved');
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4">
-      <div className="max-w-3xl mx-auto">
-        <Link to="/" className="text-sm text-indigo-600 hover:underline">
-          ← Back to home
+    <div className="min-h-screen bg-background relative py-10 px-4 sm:px-6 lg:px-8 text-foreground selection:bg-primary/20 selection:text-primary">
+      {/* Background canvas dot grid */}
+      <div className="fixed inset-0 pointer-events-none opacity-40 theme-dot-pattern" />
+
+      <div className="relative max-w-3xl mx-auto space-y-6">
+        <Link
+          to="/driver/routepools"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to route pools</span>
         </Link>
-        <h1 className="text-2xl font-bold text-slate-900 mt-2 mb-6">Create a Recurring Route Pool</h1>
+
+        <div>
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-secondary/80 text-primary border border-border text-xs font-mono mb-2">
+            <GitFork className="w-3.5 h-3.5" />
+            <span>COMMUTE TIMETABLE</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-foreground tracking-tight">
+            Create Recurring Route Pool
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Establish a standing timetable route. Daily rides will be automatically scheduled every midnight.
+          </p>
+        </div>
 
         {status.error && (
-          <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
-            {status.error}
+          <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-[var(--radius)] text-xs font-medium flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{status.error}</span>
           </div>
         )}
         {status.success && (
-          <div className="mb-4 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-            {status.success}
+          <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-[var(--radius)] text-xs font-medium flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{status.success}</span>
           </div>
         )}
 
         {!loadingVehicles && approvedVehicles.length === 0 && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
-            <p className="font-semibold">⚠️ No Approved Vehicle Available</p>
-            <p className="mt-1">
-              You must have an <strong>Approved</strong> vehicle to create a route pool.
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-[var(--radius)] text-amber-900 text-xs space-y-2">
+            <p className="font-semibold flex items-center gap-1.5 text-amber-900">
+              <AlertCircle className="w-4 h-4 text-amber-700" />
+              No Approved Vehicle Available
             </p>
-            <Link to="/driver/vehicles/add" className="inline-block mt-3 font-semibold text-amber-900 underline">
-              Register a vehicle →
+            <p className="text-amber-800">
+              You must have an approved vehicle registered before you can offer route pools.
+            </p>
+            <Link
+              to="/driver/vehicles/add"
+              className="inline-block font-semibold text-primary underline hover:text-[#832323]"
+            >
+              Register a vehicle for verification →
             </Link>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-6">
+        <form onSubmit={handleSubmit} className="bg-card border border-border rounded-[var(--radius)] p-6 sm:p-7 shadow-xs space-y-6">
           {/* Vehicle Selection */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Select Vehicle
+            <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Select Approved Vehicle
             </label>
-            <select
-              required
-              value={vehicleId}
-              onChange={(e) => setVehicleId(e.target.value)}
-              className="w-full border border-slate-300 rounded-md p-2.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              disabled={approvedVehicles.length === 0}
-            >
-              <option value="">-- Choose an approved vehicle --</option>
-              {approvedVehicles.map((v) => (
-                <option key={v._id} value={v._id}>
-                  {v._id} ({v.model} • {v.seats} seats)
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                required
+                value={vehicleId}
+                onChange={(e) => setVehicleId(e.target.value)}
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
+                disabled={approvedVehicles.length === 0}
+              >
+                <option value="">-- Choose an approved vehicle --</option>
+                {approvedVehicles.map((v) => (
+                  <option key={v._id} value={v._id}>
+                    {v._id} ({v.model} • {v.seats} seats)
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Locations */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Origin Location */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <div className="p-4 bg-secondary/30 border border-border rounded-[var(--radius)] space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" />
                   Origin (Starting Point)
                 </span>
                 <button
                   type="button"
                   onClick={handleUseCurrentLocation}
-                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded cursor-pointer transition"
+                  className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-primary hover:text-[#832323] bg-secondary/80 hover:bg-secondary border border-border px-2 py-0.5 rounded cursor-pointer transition"
                 >
-                  📍 Use Current Location
+                  <Navigation className="w-3 h-3" />
+                  <span>My Location</span>
                 </button>
               </div>
 
@@ -295,7 +339,7 @@ function CreateRoutePool() {
                 <div className="flex gap-2">
                   <input
                     required
-                    placeholder="Type to search origin..."
+                    placeholder="Search origin..."
                     value={originQuery}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -310,30 +354,31 @@ function CreateRoutePool() {
                         searchPlace(originQuery, 'origin');
                       }
                     }}
-                    className="flex-1 border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="flex-1 bg-background border border-border rounded-[var(--radius)] p-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={() => searchPlace(originQuery, 'origin')}
                     disabled={searchingOrigin}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-md font-semibold cursor-pointer disabled:opacity-50 transition"
+                    className="text-xs h-9 px-3 border-border"
                   >
-                    {searchingOrigin ? '...' : 'Search'}
-                  </button>
+                    <Search className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
 
                 {/* Floating Suggestions Dropdown */}
                 {originResults.length > 0 && (
-                  <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto divide-y divide-slate-100">
+                  <div className="absolute z-30 left-0 right-0 mt-1 bg-card border border-border rounded-[var(--radius)] shadow-lg max-h-48 overflow-y-auto divide-y divide-border/60">
                     {originResults.map((item, idx) => (
                       <div
                         key={idx}
                         onClick={() => handleSelectOrigin(item)}
-                        className="p-2.5 text-xs text-slate-700 hover:bg-indigo-50 cursor-pointer flex items-center justify-between"
+                        className="p-2.5 text-xs text-foreground hover:bg-secondary cursor-pointer flex items-center justify-between transition"
                       >
                         <span className="truncate pr-2">{item.display_name}</span>
                         {item.isPreset && (
-                          <span className="bg-indigo-100 text-indigo-700 text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0">
+                          <span className="bg-secondary text-primary font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded border border-border shrink-0">
                             Preset
                           </span>
                         )}
@@ -344,14 +389,14 @@ function CreateRoutePool() {
               </div>
 
               {/* Selected badge */}
-              <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-0.5">
                 <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>Selected: <strong className="text-slate-700">{origin.label}</strong></span>
+                <span>Selected: <strong className="text-foreground">{origin.label}</strong></span>
               </div>
 
               {/* Quick Presets */}
-              <div className="pt-2 border-t border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Quick Presets</span>
+              <div className="pt-2 border-t border-border/80">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block mb-1">Campus Presets</span>
                 <div className="flex flex-wrap gap-1">
                   {POPULAR_LOCATIONS.map((loc) => (
                     <button
@@ -362,7 +407,7 @@ function CreateRoutePool() {
                         setOriginQuery(loc.label);
                         setOriginResults([]);
                       }}
-                      className="text-[10px] bg-white border border-slate-300 px-2 py-1 rounded hover:bg-slate-100 text-slate-700 cursor-pointer"
+                      className="text-[10px] font-mono bg-card border border-border px-2 py-0.5 rounded hover:bg-secondary text-foreground cursor-pointer transition"
                     >
                       {loc.label.split(' ')[0]}
                     </button>
@@ -372,8 +417,9 @@ function CreateRoutePool() {
             </div>
 
             {/* Destination Location */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 block">
+            <div className="p-4 bg-secondary/30 border border-border rounded-[var(--radius)] space-y-3">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5" />
                 Destination (Ending Point)
               </span>
 
@@ -381,7 +427,7 @@ function CreateRoutePool() {
                 <div className="flex gap-2">
                   <input
                     required
-                    placeholder="Type to search destination..."
+                    placeholder="Search campus or terminus..."
                     value={destQuery}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -396,30 +442,31 @@ function CreateRoutePool() {
                         searchPlace(destQuery, 'dest');
                       }
                     }}
-                    className="flex-1 border border-slate-300 rounded-md p-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    className="flex-1 bg-background border border-border rounded-[var(--radius)] p-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={() => searchPlace(destQuery, 'dest')}
                     disabled={searchingDest}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-md font-semibold cursor-pointer disabled:opacity-50 transition"
+                    className="text-xs h-9 px-3 border-border"
                   >
-                    {searchingDest ? '...' : 'Search'}
-                  </button>
+                    <Search className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
 
                 {/* Floating Suggestions Dropdown */}
                 {destResults.length > 0 && (
-                  <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto divide-y divide-slate-100">
+                  <div className="absolute z-30 left-0 right-0 mt-1 bg-card border border-border rounded-[var(--radius)] shadow-lg max-h-48 overflow-y-auto divide-y divide-border/60">
                     {destResults.map((item, idx) => (
                       <div
                         key={idx}
                         onClick={() => handleSelectDest(item)}
-                        className="p-2.5 text-xs text-slate-700 hover:bg-emerald-50 cursor-pointer flex items-center justify-between"
+                        className="p-2.5 text-xs text-foreground hover:bg-secondary cursor-pointer flex items-center justify-between transition"
                       >
                         <span className="truncate pr-2">{item.display_name}</span>
                         {item.isPreset && (
-                          <span className="bg-emerald-100 text-emerald-700 text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0">
+                          <span className="bg-secondary text-primary font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded border border-border shrink-0">
                             Preset
                           </span>
                         )}
@@ -430,14 +477,14 @@ function CreateRoutePool() {
               </div>
 
               {/* Selected badge */}
-              <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-0.5">
                 <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>Selected: <strong className="text-slate-700">{destination.label}</strong></span>
+                <span>Selected: <strong className="text-foreground">{destination.label}</strong></span>
               </div>
 
               {/* Quick Presets */}
-              <div className="pt-2 border-t border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Quick Presets</span>
+              <div className="pt-2 border-t border-border/80">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block mb-1">Campus Presets</span>
                 <div className="flex flex-wrap gap-1">
                   {POPULAR_LOCATIONS.map((loc) => (
                     <button
@@ -448,7 +495,7 @@ function CreateRoutePool() {
                         setDestQuery(loc.label);
                         setDestResults([]);
                       }}
-                      className="text-[10px] bg-white border border-slate-300 px-2 py-1 rounded hover:bg-slate-100 text-slate-700 cursor-pointer"
+                      className="text-[10px] font-mono bg-card border border-border px-2 py-0.5 rounded hover:bg-secondary text-foreground cursor-pointer transition"
                     >
                       {loc.label.split(' ')[0]}
                     </button>
@@ -460,7 +507,8 @@ function CreateRoutePool() {
 
           {/* Recurrence Days */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+            <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-primary" />
               Recurrence Days (Timetable)
             </label>
             <div className="flex flex-wrap gap-2">
@@ -471,10 +519,10 @@ function CreateRoutePool() {
                     type="button"
                     key={day.id}
                     onClick={() => handleDayToggle(day.id)}
-                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-[var(--radius)] text-xs font-mono font-semibold transition cursor-pointer border ${
                       selected
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                        : 'bg-secondary/60 text-secondary-foreground border-border hover:bg-secondary'
                     }`}
                   >
                     {day.label}
@@ -487,34 +535,37 @@ function CreateRoutePool() {
           {/* Departure Window & Seats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                Window Start (HH:mm)
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-primary" />
+                Window Start
               </label>
               <input
                 type="time"
                 required
                 value={departureWindowStart}
                 onChange={(e) => setDepartureWindowStart(e.target.value)}
-                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2 text-sm font-mono text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                Window End (HH:mm)
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-primary" />
+                Window End
               </label>
               <input
                 type="time"
                 required
                 value={departureWindowEnd}
                 onChange={(e) => setDepartureWindowEnd(e.target.value)}
-                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2 text-sm font-mono text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                Max Passenger Seats
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+                <Users className="w-3 h-3 text-primary" />
+                Max Seats
               </label>
               <input
                 type="number"
@@ -523,18 +574,18 @@ function CreateRoutePool() {
                 required
                 value={maxMembers}
                 onChange={(e) => setMaxMembers(e.target.value)}
-                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2 text-sm font-mono text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
               />
             </div>
           </div>
 
-          <button
+          <Button
             type="submit"
             disabled={submitting || approvedVehicles.length === 0}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg text-sm transition shadow-xs cursor-pointer"
+            className="w-full bg-primary hover:bg-[#832323] text-primary-foreground py-3 text-sm font-semibold shadow-xs"
           >
             {submitting ? 'Calculating Route & Saving...' : 'Create Recurring Route Pool'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

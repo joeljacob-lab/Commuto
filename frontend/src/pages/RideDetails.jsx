@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { getRideById, createBooking } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { Button } from '../components/ui/button';
 
 const RideDetails = () => {
   const { id } = useParams();
@@ -81,10 +82,10 @@ const RideDetails = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-slate-500 font-medium">Fetching corridor itinerary...</p>
+          <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-muted-foreground font-medium">Fetching corridor itinerary...</p>
         </div>
       </div>
     );
@@ -92,9 +93,9 @@ const RideDetails = () => {
 
   if (!ride) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <h2 className="text-lg font-bold text-slate-800">Trip not found</h2>
-        <Link to="/search-rides" className="text-indigo-600 text-xs mt-2 underline">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <h2 className="text-lg font-serif font-bold text-foreground">Trip Not Found</h2>
+        <Link to="/search-rides" className="text-primary text-xs mt-2 underline">
           Return to search
         </Link>
       </div>
@@ -109,53 +110,57 @@ const RideDetails = () => {
   const rideDate = ride.date ? new Date(ride.date).toLocaleDateString() : 'Scheduled Date';
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background py-10 px-4 sm:px-6 lg:px-8 relative selection:bg-accent selection:text-accent-foreground">
+      {/* Subtle Dot Pattern */}
+      <div className="absolute inset-0 theme-dot-pattern opacity-40 pointer-events-none" />
+
+      <div className="max-w-4xl mx-auto space-y-6 relative z-10">
+        
         {/* Navigation Breadcrumb */}
         <Link
           to="/search-rides"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           Back to Search Results
         </Link>
 
         {/* Trip Banner */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-card rounded-[var(--radius)] border border-border p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+              <span className={`px-2.5 py-0.5 rounded-[var(--radius)] text-[10px] font-bold uppercase tracking-wider ${
                 ride.status === 'published' || ride.status === 'booking'
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                  : 'bg-slate-100 text-slate-700'
+                  ? 'bg-secondary text-primary border border-border'
+                  : 'bg-muted text-foreground border border-border'
               }`}>
                 {ride.status}
               </span>
-              <span className="text-xs text-slate-400 font-mono">
+              <span className="text-xs text-muted-foreground font-mono">
                 #{String(ride._id || '').slice(-8).toUpperCase()}
               </span>
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+            <h1 className="text-xl sm:text-2xl font-serif font-extrabold text-foreground">
               {ride.origin?.label} → {ride.destination?.label}
             </h1>
-            <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5 text-primary" />
               <span>{rideDate}</span>
               <span>•</span>
-              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <Clock className="w-3.5 h-3.5 text-primary" />
               <span>Departs at {ride.departureTime}</span>
             </p>
           </div>
 
-          <div className="text-right">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+          <div className="text-left md:text-right bg-background md:bg-transparent p-3 md:p-0 rounded-[var(--radius)] border md:border-none border-border">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block font-mono">
               Estimated Share / Head
             </span>
-            <span className="text-3xl font-black text-indigo-700">
+            <span className="text-3xl font-mono font-black text-primary">
               ₹{ride.costPerHeadFinal || ride.estimatedCostPerHead || 20}
             </span>
-            <span className="text-[11px] text-slate-500 block">
+            <span className="text-[11px] text-muted-foreground block font-sans">
               {ride.costLocked ? '🔒 Finalized Roster' : 'Provisional equal split'}
             </span>
           </div>
@@ -164,26 +169,26 @@ const RideDetails = () => {
         {/* 2-Column Info Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Driver & Safety Identity */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <div className="bg-card rounded-[var(--radius)] border border-border p-6 shadow-xs space-y-4">
+            <h2 className="text-xs font-bold text-foreground uppercase tracking-wider font-mono flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-primary" />
               Driver &amp; Safety Profile
             </h2>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2 text-xs">
+            <div className="bg-background p-4 rounded-lg border border-border space-y-2 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Driver Name</span>
-                <span className="font-bold text-slate-900">{driverName}</span>
+                <span className="text-muted-foreground">Driver Name</span>
+                <span className="font-bold text-foreground">{driverName}</span>
               </div>
 
               {driverPhone && (
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">Contact Phone</span>
+                  <span className="text-muted-foreground">Contact Phone</span>
                   <a
                     href={`tel:${driverPhone}`}
-                    className="inline-flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center gap-1 font-mono font-bold text-primary bg-secondary px-2 py-0.5 rounded border border-border transition hover:scale-105"
                   >
-                    <Phone className="w-3 h-3" />
+                    <Phone className="w-3 h-3 text-primary" />
                     <span>{driverPhone}</span>
                   </a>
                 </div>
@@ -191,18 +196,18 @@ const RideDetails = () => {
 
               {driverEmail && (
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">College Email</span>
-                  <span className="font-mono text-slate-700 flex items-center gap-1">
-                    <Mail className="w-3 h-3 text-slate-400" />
+                  <span className="text-muted-foreground">College Email</span>
+                  <span className="font-mono text-foreground flex items-center gap-1">
+                    <Mail className="w-3 h-3 text-primary" />
                     {driverEmail}
                   </span>
                 </div>
               )}
 
               {/* MUTUAL COMMUTES BADGE */}
-              <div className="flex items-center justify-between pt-1 border-t border-slate-200">
-                <span className="text-slate-500 font-medium">Mutual Commutes</span>
-                <span className="font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full text-[11px] border border-indigo-100 inline-flex items-center gap-1">
+              <div className="flex items-center justify-between pt-1 border-t border-border">
+                <span className="text-muted-foreground">Mutual Commutes</span>
+                <span className="font-bold text-accent-foreground bg-accent/60 px-2.5 py-0.5 rounded-[var(--radius)] text-[11px] border border-border inline-flex items-center gap-1">
                   <span>🤝</span>
                   <span>
                     {ride.mutualRideCount > 0
@@ -213,63 +218,63 @@ const RideDetails = () => {
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              ✓ Verified college member. Protected by Commuto&apos;s campus identity constraint and mutual rating system.
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              ✓ Verified college member. Protected by Commuto&apos;s campus identity constraint and mutual pairwise trust graph.
             </p>
           </div>
 
           {/* Vehicle & Capacity Specs */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <Car className="w-4 h-4 text-indigo-600" />
+          <div className="bg-card rounded-[var(--radius)] border border-border p-6 shadow-xs space-y-4">
+            <h2 className="text-xs font-bold text-foreground uppercase tracking-wider font-mono flex items-center gap-2">
+              <Car className="w-4 h-4 text-primary" />
               Vehicle Specifications
             </h2>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2 text-xs">
+            <div className="bg-background p-4 rounded-lg border border-border space-y-2 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Model</span>
-                <span className="font-bold text-slate-900 capitalize">
+                <span className="text-muted-foreground">Model</span>
+                <span className="font-bold text-foreground capitalize">
                   {ride.vehicleId?.model || 'Campus Vehicle'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Vehicle Type</span>
-                <span className="capitalize text-slate-700">{ride.vehicleId?.type || '4-Wheeler'}</span>
+                <span className="text-muted-foreground">Vehicle Type</span>
+                <span className="capitalize text-foreground font-medium">{ride.vehicleId?.type || '4-Wheeler'}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Available Capacity</span>
-                <span className="font-bold text-emerald-700">
+                <span className="text-muted-foreground">Available Capacity</span>
+                <span className="font-bold text-primary font-mono">
                   {ride.availableSeats} of {ride.totalSeats} seats open
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Fuel Mileage Benchmark</span>
-                <span className="text-slate-700">{ride.vehicleId?.mileageKmpl || 15} km/L</span>
+                <span className="text-muted-foreground">Mileage Benchmark</span>
+                <span className="text-foreground font-mono">{ride.vehicleId?.mileageKmpl || 15} km/L</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Boarding Points / Stops */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-indigo-600" />
-            Route Corridor &amp; Designated Boarding Points
+        <div className="bg-card rounded-[var(--radius)] border border-border p-6 shadow-xs space-y-4">
+          <h2 className="text-xs font-bold text-foreground uppercase tracking-wider font-mono flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-primary" />
+            Route Corridor &amp; Designated Stops
           </h2>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {ride.boardingPoints?.map((bp, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs"
+                className="flex items-center justify-between p-3 rounded-lg bg-background border border-border text-xs"
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-[10px]">
+                  <span className="w-6 h-6 rounded-full bg-secondary text-primary flex items-center justify-center font-bold font-mono text-[10px] border border-border">
                     {index + 1}
                   </span>
-                  <span className="font-semibold text-slate-800">{bp.label}</span>
+                  <span className="font-semibold text-foreground">{bp.label}</span>
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono">
+                <span className="text-[10px] text-muted-foreground font-mono">
                   {bp.point?.coordinates ? `[${bp.point.coordinates[0].toFixed(3)}, ${bp.point.coordinates[1].toFixed(3)}]` : ''}
                 </span>
               </div>
@@ -278,59 +283,57 @@ const RideDetails = () => {
         </div>
 
         {/* Cost Formula Breakdown */}
-        <div className="bg-indigo-50/60 rounded-2xl border border-indigo-100 p-6 shadow-xs space-y-3">
-          <div className="flex items-center gap-2 text-indigo-900 font-bold text-sm">
-            <Fuel className="w-4 h-4 text-indigo-600" />
+        <div className="bg-secondary/60 rounded-[var(--radius)] border border-border p-6 shadow-xs space-y-3">
+          <div className="flex items-center gap-2 text-foreground font-serif font-bold text-sm">
+            <Fuel className="w-4 h-4 text-primary" />
             Transparent Daily Cost Sharing Formula
           </div>
-          <p className="text-xs text-indigo-950/80 leading-relaxed">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             Commuto splits the actual fuel expense evenly between the driver and confirmed riders:
           </p>
-          <div className="bg-white/80 p-3 rounded-xl font-mono text-[11px] text-indigo-900 border border-indigo-200/50">
+          <div className="bg-card p-3 rounded-lg font-mono text-[11px] text-primary border border-border">
             Fare = (Trip Distance ÷ Vehicle Mileage × ₹{ride.fuelPricePerLitreUsed || 105}/L) ÷ (1 Driver + Confirmed Riders)
           </div>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-muted-foreground">
             🔒 Seat fare is provisionally reserved from your escrow balance and frozen at 9:00 PM roster lock based on confirmed headcount.
           </p>
         </div>
 
         {/* Actions Bar */}
         {error && (
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium">
+          <div className="p-3 bg-secondary/80 border border-destructive/20 rounded-[var(--radius)] text-destructive text-xs font-medium">
             {error}
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            <Users className="w-4 h-4 text-slate-400" />
+        <div className="bg-card rounded-[var(--radius)] border border-border p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+            <Users className="w-4 h-4 text-primary" />
             <span>{ride.availableSeats} seats remaining</span>
           </div>
 
           {bookingSuccess ? (
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-foreground bg-secondary px-4 py-2 rounded-lg border border-border">
+              <CheckCircle2 className="w-4 h-4 text-primary" />
               Seat Booked! Redirecting to Tickets...
             </div>
           ) : isDriver ? (
-            <span className="text-xs text-slate-400 italic">
+            <span className="text-xs text-muted-foreground italic">
               You are the driver of this trip
             </span>
           ) : ride.availableSeats <= 0 ? (
-            <button
-              disabled
-              className="bg-slate-200 text-slate-500 text-xs font-bold px-5 py-2.5 rounded-xl cursor-not-allowed"
-            >
+            <Button disabled size="default" className="text-xs font-bold">
               Trip Full
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               onClick={handleBookSeat}
               disabled={bookingLoading}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-6 py-2.5 rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
+              size="default"
+              className="font-bold text-xs shadow-xs"
             >
               {bookingLoading ? 'Reserving...' : `Book Seat (Hold ₹${ride.costPerHeadFinal || ride.estimatedCostPerHead || 20})`}
-            </button>
+            </Button>
           )}
         </div>
       </div>

@@ -1,4 +1,14 @@
 import { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { 
+  ArrowLeft, 
+  UploadCloud, 
+  FileCheck, 
+  CheckCircle2, 
+  AlertCircle,
+  ShieldCheck
+} from 'lucide-react';
+import { Button } from '../../components/ui/button';
 import { addVehicle } from '../../services/api';
 
 function VehicleForm() {
@@ -67,7 +77,7 @@ function VehicleForm() {
     if (documents.length === 0) {
       setStatus({
         loading: false,
-        error: 'Please upload at least one RC/Insurance document.',
+        error: 'Please upload at least one RC or Insurance document for verification.',
         success: '',
       });
       return;
@@ -79,10 +89,10 @@ function VehicleForm() {
       setStatus({
         loading: false,
         error: '',
-        success: 'Vehicle submitted for admin verification!',
+        success: 'Vehicle submitted for admin verification! Our campus safety team will review your papers shortly.',
       });
 
-      // 1. Reset all form text inputs
+      // Reset form
       setFormData({
         registrationNumber: '',
         model: '',
@@ -92,10 +102,8 @@ function VehicleForm() {
         mileageKmpl: 15,
       });
 
-      // 2. Reset the file state
       setDocuments([]);
 
-      // 3. Clear the DOM file input display text
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -109,148 +117,176 @@ function VehicleForm() {
   };
 
   return (
-    <div className="max-w-xl mx-auto py-10 px-4">
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Register a Vehicle</h1>
+    <div className="min-h-screen bg-background relative py-10 px-4 sm:px-6 lg:px-8 text-foreground selection:bg-primary/20 selection:text-primary">
+      {/* Background canvas dot grid */}
+      <div className="fixed inset-0 pointer-events-none opacity-40 theme-dot-pattern" />
 
-      {status.error && (
-        <div className="text-red-700 bg-red-50 border border-red-200 text-sm p-3 mb-4 rounded-lg">
-          {status.error}
-        </div>
-      )}
+      <div className="relative max-w-xl mx-auto space-y-6">
+        <Link
+          to="/dashboard"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Dashboard</span>
+        </Link>
 
-      {status.success && (
-        <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 text-sm p-3 mb-4 rounded-lg">
-          {status.success}
-        </div>
-      )}
-
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 bg-white p-6 border border-slate-200 rounded-xl shadow-xs"
-      >
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-            Registration Number
-          </label>
-          <input
-            required
-            placeholder="e.g. KL 07 AB 1234"
-            value={formData.registrationNumber}
-            onChange={(e) =>
-              setFormData({ ...formData, registrationNumber: e.target.value })
-            }
-            className="w-full border border-slate-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Vehicle Model
-            </label>
-            <input
-              required
-              placeholder="e.g. Swift, Activa"
-              value={formData.model}
-              onChange={(e) =>
-                setFormData({ ...formData, model: e.target.value })
-              }
-              className="w-full border border-slate-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-secondary/80 text-primary border border-border text-xs font-mono mb-2">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>FLEET VERIFICATION</span>
           </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Vehicle Type
-            </label>
-            <select
-              value={formData.type}
-              onChange={(e) =>
-                setFormData({ ...formData, type: e.target.value })
-              }
-              className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="car">Car</option>
-              <option value="bike">Bike</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Color
-            </label>
-            <input
-              placeholder="e.g. White, Grey"
-              value={formData.color}
-              onChange={(e) =>
-                setFormData({ ...formData, color: e.target.value })
-              }
-              className="w-full border border-slate-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Passenger Seats
-            </label>
-            <input
-              required
-              type="number"
-              min="1"
-              max="8"
-              value={formData.seats}
-              onChange={(e) =>
-                setFormData({ ...formData, seats: e.target.value })
-              }
-              className="w-full border border-slate-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Mileage (km/l)
-            </label>
-            <input
-              required
-              type="number"
-              min="1"
-              value={formData.mileageKmpl}
-              onChange={(e) =>
-                setFormData({ ...formData, mileageKmpl: e.target.value })
-              }
-              className="w-full border border-slate-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
-
-        <div className="pt-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-            Upload RC &amp; Insurance Documents
-          </label>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-            onChange={handleFileChange}
-            className="w-full border border-slate-300 rounded-md p-2 text-sm bg-slate-50 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-            required
-          />
-          <p className="text-xs text-slate-500 mt-1">
-            Supported formats: <strong>JPG, JPEG, PNG, or PDF</strong>. You can select multiple files.
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-foreground tracking-tight">
+            Register a Vehicle
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Submit your car or two-wheeler details and official RC / Insurance papers for campus verification.
           </p>
         </div>
 
-        <button
-          type="submit"
-          disabled={status.loading}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-2.5 rounded-lg text-sm font-semibold transition shadow-xs mt-2"
+        {status.error && (
+          <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-[var(--radius)] text-xs font-medium flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{status.error}</span>
+          </div>
+        )}
+
+        {status.success && (
+          <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-[var(--radius)] text-xs font-medium flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{status.success}</span>
+          </div>
+        )}
+
+        <form
+          onSubmit={handleSubmit}
+          className="bg-card border border-border rounded-[var(--radius)] p-6 sm:p-7 shadow-xs space-y-4"
         >
-          {status.loading ? 'Uploading & Registering...' : 'Submit Vehicle'}
-        </button>
-      </form>
+          <div>
+            <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Registration Number
+            </label>
+            <input
+              required
+              placeholder="e.g. KL 07 AB 1234"
+              value={formData.registrationNumber}
+              onChange={(e) =>
+                setFormData({ ...formData, registrationNumber: e.target.value })
+              }
+              className="w-full bg-background border border-border rounded-[var(--radius)] p-2.5 text-sm font-mono uppercase text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Vehicle Model
+              </label>
+              <input
+                required
+                placeholder="e.g. Swift, Activa, Nexon"
+                value={formData.model}
+                onChange={(e) =>
+                  setFormData({ ...formData, model: e.target.value })
+                }
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Vehicle Type
+              </label>
+              <select
+                value={formData.type}
+                onChange={(e) =>
+                  setFormData({ ...formData, type: e.target.value })
+                }
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
+              >
+                <option value="car">Car</option>
+                <option value="bike">Bike</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Color
+              </label>
+              <input
+                placeholder="e.g. White, Grey"
+                value={formData.color}
+                onChange={(e) =>
+                  setFormData({ ...formData, color: e.target.value })
+                }
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Passenger Seats
+              </label>
+              <input
+                required
+                type="number"
+                min="1"
+                max="8"
+                value={formData.seats}
+                onChange={(e) =>
+                  setFormData({ ...formData, seats: e.target.value })
+                }
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2.5 text-sm font-mono text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Mileage (km/l)
+              </label>
+              <input
+                required
+                type="number"
+                min="1"
+                value={formData.mileageKmpl}
+                onChange={(e) =>
+                  setFormData({ ...formData, mileageKmpl: e.target.value })
+                }
+                className="w-full bg-background border border-border rounded-[var(--radius)] p-2.5 text-sm font-mono text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition"
+              />
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1.5">
+              <UploadCloud className="w-3.5 h-3.5 text-primary" />
+              Upload RC &amp; Insurance Documents
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+              onChange={handleFileChange}
+              className="w-full bg-secondary/30 border border-border rounded-[var(--radius)] p-2 text-xs text-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-[var(--radius)] file:border file:border-border file:text-xs file:font-semibold file:bg-secondary file:text-primary hover:file:bg-secondary/80 cursor-pointer transition"
+              required
+            />
+            <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
+              <FileCheck className="w-3 h-3 text-primary shrink-0" />
+              <span>Supported formats: <strong>JPG, JPEG, PNG, or PDF</strong>. Multiple files allowed.</span>
+            </p>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={status.loading}
+            className="w-full bg-primary hover:bg-[#832323] text-primary-foreground py-2.5 text-sm font-semibold shadow-xs mt-3"
+          >
+            {status.loading ? 'Uploading & Registering...' : 'Submit Vehicle for Review'}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
