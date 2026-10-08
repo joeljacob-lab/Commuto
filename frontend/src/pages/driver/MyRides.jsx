@@ -10,11 +10,12 @@ import {
   Mail, 
   Building2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Star
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { toast } from '../../components/ui/toaster';
-import { getMyDriverRides, completeRide } from '../../services/api';
+import { getMyDriverRides, completeRide, createReview } from '../../services/api';
 
 // Safe date/time formatting helpers that never throw RangeError
 const safeFormatTime = (timeVal) => {
@@ -43,12 +44,55 @@ const safeFormatDate = (dateVal) => {
   }
 };
 
+const isRideLockPassed = (ride) => {
+  if (!ride) return false;
+  if (ride.costLocked) return true;
+  if (ride.rosterLockAt && new Date() >= new Date(ride.rosterLockAt)) return true;
+  if (ride.date && ride.departureTime) {
+    const [h, m] = String(ride.departureTime).split(':').map(Number);
+    const depDate = new Date(ride.date);
+    depDate.setHours(h || 0, m || 0, 0, 0);
+    if (new Date() >= depDate) return true;
+  }
+  return false;
+};
+
 const MyRides = () => {
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Review Modal state for driver rating passengers
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedPassengerForReview, setSelectedPassengerForReview] = useState(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedPassengerForReview) return;
+
+    try {
+      setReviewSubmitting(true);
+      await createReview({
+        rideId: selectedPassengerForReview.rideId,
+        toUserId: selectedPassengerForReview.passengerId,
+        rating: Number(rating),
+        comment: comment.trim(),
+      });
+      toast.success(`Review recorded for passenger ${selectedPassengerForReview.passengerName}!`, { title: 'Feedback Recorded' });
+      setReviewModalOpen(false);
+      setComment('');
+      setRating(5);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit review for rider', { title: 'Submission Error' });
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -234,9 +278,9 @@ const MyRides = () => {
                       <span className="text-xs bg-secondary/60 text-muted-foreground font-mono font-medium px-3 py-1.5 rounded-[var(--radius)] border border-border">
                         No Passengers (₹0 Payout)
                       </span>
-                    ) : !ride.costLocked ? (
+                    ) : !isRideLockPassed(ride) ? (
                       <span className="text-xs bg-amber-50 text-amber-800 font-mono font-medium px-3 py-1.5 rounded-[var(--radius)] border border-amber-200/80">
-                        Awaiting 9:00 PM Roster Lock
+                        Awaiting Roster Lock ({safeFormatTime(ride.rosterLockAt)})
                       </span>
                     ) : (
                       <Button
@@ -337,29 +381,51 @@ const MyRides = () => {
                                 </div>
                               )}
 
-                              {/* Driver Action Contact Bar */}
-                              <div className="pt-2 border-t border-border flex items-center justify-between">
-                                {studentPhone ? (
-                                  <a
-                                    href={`tel:${studentPhone}`}
-                                    className="inline-flex items-center gap-1.5 font-mono font-medium text-primary hover:text-[#832323] bg-secondary/60 hover:bg-secondary px-2.5 py-1 rounded-[var(--radius)] border border-border transition cursor-pointer text-[11px]"
-                                    title="Call Passenger"
-                                  >
-                                    <Phone className="w-3 h-3 text-primary" />
-                                    <span>{studentPhone}</span>
-                                  </a>
-                                ) : (
-                                  <span className="text-[10px] text-muted-foreground italic">No phone provided</span>
-                                )}
+                              {/* Driver Action Contact & Rating Bar */}
+                              <div className="pt-2 border-t border-border flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  {studentPhone ? (
+                                    <a
+                                      href={`tel:${studentPhone}`}
+                                      className="inline-flex items-center gap-1.5 font-mono font-medium text-primary hover:text-[#832323] bg-secondary/60 hover:bg-secondary px-2.5 py-1 rounded-[var(--radius)] border border-border transition cursor-pointer text-[11px]"
+                                      title="Call Passenger"
+                                    >
+                                      <Phone className="w-3 h-3 text-primary" />
+                                      <span>{studentPhone}</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground italic">No phone</span>
+                                  )}
 
-                                {studentEmail && (
-                                  <a
-                                    href={`mailto:${studentEmail}`}
-                                    className="text-muted-foreground hover:text-primary p-1 transition"
-                                    title={`Email ${studentEmail}`}
+                                  {studentEmail && (
+                                    <a
+                                      href={`mailto:${studentEmail}`}
+                                      className="text-muted-foreground hover:text-primary p-1 transition"
+                                      title={`Email ${studentEmail}`}
+                                    >
+                                      <Mail className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
+                                </div>
+
+                                {/* Rate Rider button on completed trip */}
+                                {ride.status === 'completed' && (
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedPassengerForReview({
+                                        rideId: ride._id,
+                                        passengerId: typeof student === 'object' ? student?._id : student,
+                                        passengerName: studentName,
+                                      });
+                                      setReviewModalOpen(true);
+                                    }}
+                                    className="gap-1.5 text-xs font-bold h-7 px-2.5"
                                   >
-                                    <Mail className="w-3.5 h-3.5" />
-                                  </a>
+                                    <Star className="w-3.5 h-3.5 text-primary fill-current" />
+                                    Rate Rider
+                                  </Button>
                                 )}
                               </div>
                             </div>
@@ -374,6 +440,77 @@ const MyRides = () => {
           </div>
         )}
       </div>
+
+      {/* Driver Review Modal for Passenger */}
+      {reviewModalOpen && selectedPassengerForReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-card rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-border space-y-4">
+            <div>
+              <h3 className="text-base font-serif font-bold text-foreground">
+                Rate Rider: {selectedPassengerForReview.passengerName}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Rate your co-rider on punctuality, communication, and carpool courtesy.
+              </p>
+            </div>
+
+            <form onSubmit={handleReviewSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-2">
+                  Rating (1 to 5 Stars)
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      className={`p-2 rounded-[var(--radius)] border transition cursor-pointer ${
+                        rating >= star
+                          ? 'bg-secondary border-primary/40 text-primary'
+                          : 'border-border text-muted-foreground/30 hover:border-border/80'
+                      }`}
+                    >
+                      <Star className="w-5 h-5 fill-current" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">
+                  Comments (Optional)
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="On-time pickup, courteous co-rider..."
+                  className="w-full text-xs p-3 rounded-[var(--radius)] bg-background border border-border focus:outline-none focus:ring-1 focus:ring-primary min-h-[80px]"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReviewModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={reviewSubmitting}
+                  className="font-semibold"
+                >
+                  {reviewSubmitting ? 'Submitting...' : 'Submit Rating'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

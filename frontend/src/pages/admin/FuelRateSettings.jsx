@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Fuel, 
   ArrowLeft, 
   CheckCircle2, 
   AlertCircle, 
@@ -97,10 +96,7 @@ function FuelRateSettings() {
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Admin Center</span>
           </Link>
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-secondary/80 text-primary border border-border text-xs font-mono mb-2">
-            <Fuel className="w-3.5 h-3.5" />
-            <span>COMMUTE TARIFF</span>
-          </div>
+          
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-foreground tracking-tight">
             Fuel Rate Settings
           </h1>

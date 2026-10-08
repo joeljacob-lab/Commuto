@@ -326,12 +326,29 @@ export const completeRide = async (req, res, next) => {
       return res.status(400).json({ message: 'Cannot complete a cancelled ride' });
     }
 
-    // 2. Guard: Cannot complete before Roster Lock
-    if (!ride.costLocked) {
+    // 2. Guard: Cannot complete before Roster Lock or scheduled departure
+    const isLocked = ride.costLocked || (ride.rosterLockAt && new Date() >= ride.rosterLockAt);
+    if (!isLocked) {
       await session.abortTransaction();
       return res.status(400).json({
-        message: 'Cannot complete ride before 9:00 PM roster lock has finalized passenger fares.',
+        message: 'Cannot complete ride before roster lock has finalized passenger fares.',
       });
+    }
+
+    // If cost was not locked yet but lock time has arrived, finalize now
+    if (!ride.costLocked) {
+      ride.costLocked = true;
+      if (!ride.costPerHeadFinal) {
+        const confirmedBookingsCount = await Booking.countDocuments({
+          rideId: ride._id,
+          status: 'confirmed',
+        }).session(session);
+        const totalTripCost = ride.estimatedCostPerHead * (1 + ride.totalSeats);
+        ride.costPerHeadFinal = confirmedBookingsCount > 0
+          ? Math.round(totalTripCost / (1 + confirmedBookingsCount))
+          : ride.estimatedCostPerHead;
+      }
+      await ride.save({ session });
     }
 
     // 3. Fetch confirmed bookings
@@ -373,7 +390,15 @@ export const completeRide = async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
-    // Notify all completed passengers to leave a review
+    // 1. Notify driver of completed payout and prompt to rate passengers
+    sendNotification({
+      userId: driverId,
+      type: 'booking_accepted',
+      message: `Trip completed! Payout of ₹${totalPayout} credited to your wallet. You can now rate your passengers in the Driver Hub.`,
+      relatedRideId: ride._id,
+    });
+
+    // 2. Notify all completed passengers to leave a review for the driver
     for (const booking of bookings) {
       sendNotification({
         userId: booking.passengerId,

@@ -15,6 +15,28 @@ import { getMyBookings, cancelBooking, createReview, createReport } from '../ser
 import { Button } from '../components/ui/button';
 import { toast } from '../components/ui/toaster';
 
+const isRideLockPassed = (ride) => {
+  if (!ride) return false;
+  if (ride.costLocked) return true;
+  if (ride.rosterLockAt && new Date() >= new Date(ride.rosterLockAt)) return true;
+  if (ride.date && ride.departureTime) {
+    const [h, m] = String(ride.departureTime).split(':').map(Number);
+    const depDate = new Date(ride.date);
+    depDate.setHours(h || 0, m || 0, 0, 0);
+    if (new Date() >= depDate) return true;
+  }
+  return false;
+};
+
+const formatLockLabel = (ride) => {
+  if (!ride) return 'roster lock';
+  if (ride.rosterLockAt) {
+    const d = new Date(ride.rosterLockAt);
+    return `${d.toLocaleDateString([], { month: 'numeric', day: 'numeric' })} at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  }
+  return '9:00 PM lock';
+};
+
 const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +73,8 @@ const MyBookings = () => {
   }, [refreshKey]);
 
   const handleCancelBooking = async (booking) => {
-    const isPastLock = booking.rideId?.costLocked;
+    const ride = booking.rideId || {};
+    const isPastLock = isRideLockPassed(ride);
     const confirmMessage = isPastLock
       ? '⚠️ LATE CANCELLATION WARNING:\nRoster lock has already passed for this trip. Cancelling now will forfeit your escrow hold to make the driver whole. Proceed?'
       : 'Cancel this seat reservation? 100% of your held escrow share will be refunded to your wallet balance immediately.';
@@ -220,7 +243,7 @@ const MyBookings = () => {
             {bookings.map((booking) => {
               if (!booking) return null;
               const ride = booking.rideId || {};
-              const isPastLock = ride.costLocked;
+              const isPastLock = isRideLockPassed(ride);
 
               // Safely extract driver and vehicle strings
               const driverName = typeof ride.driverId === 'object' ? (ride.driverId?.name || ride.driverId?._id) : ride.driverId;
@@ -308,11 +331,11 @@ const MyBookings = () => {
                     <div className="text-xs font-mono">
                       {isPastLock ? (
                         <span className="text-primary font-medium">
-                          🔒 Roster locked. Equal Split finalized.
+                          🔒 Roster locked. Equal Split finalized (Late cancellation forfeits share).
                         </span>
                       ) : (
                         <span className="text-foreground font-medium">
-                          🔓 Free cancellation eligible until 9:00 PM lock.
+                          🔓 Free cancellation eligible until {formatLockLabel(ride)}.
                         </span>
                       )}
                     </div>
@@ -326,7 +349,11 @@ const MyBookings = () => {
                           disabled={cancellingId === booking._id}
                           className="text-xs font-bold"
                         >
-                          {cancellingId === booking._id ? 'Cancelling...' : 'Cancel Seat'}
+                          {cancellingId === booking._id
+                            ? 'Cancelling...'
+                            : isPastLock
+                              ? 'Cancel Seat (Forfeits Hold)'
+                              : 'Cancel Seat'}
                         </Button>
                       )}
 
