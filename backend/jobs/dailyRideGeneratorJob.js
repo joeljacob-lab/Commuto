@@ -2,6 +2,8 @@ import cron from 'node-cron';
 import RoutePool from '../models/RoutePool.js';
 import Ride from '../models/Ride.js';
 import FuelRate from '../models/FuelRate.js';
+import Vehicle from '../models/Vehicle.js';
+import User from '../models/User.js';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -151,7 +153,18 @@ export const generateDailyRides = async (targetDate) => {
  * Using node-cron for reliability.
  */
 export const startRideGenerationScheduler = () => {
-  // '0 0 * * *' means exactly at 12:00 AM every day
+  // 1. Immediately ensure tomorrow's rides are generated on server boot
+  generateDailyRides()
+    .then((res) => {
+      if (res?.generatedCount > 0) {
+        console.log(`✅ [Startup Ride Generator] Generated ${res.generatedCount} ride(s) for tomorrow (${res.targetDate}).`);
+      }
+    })
+    .catch((err) => {
+      console.error('❌ Error during startup ride generation:', err.message);
+    });
+
+  // 2. Scheduled: '0 0 * * *' (12:00 AM Midnight) every night
   cron.schedule('0 0 * * *', async () => {
     console.log('⏰ [Midnight CRON] Automatically generating rides for tomorrow...');
     try {

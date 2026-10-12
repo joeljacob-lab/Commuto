@@ -2,6 +2,7 @@ import RoutePool from '../models/RoutePool.js';
 import Vehicle from '../models/Vehicle.js';
 import normalizeRegNo from '../utils/normalizeRegNo.js';
 import { calculateRoute } from '../services/routeService.js';
+import { generateDailyRides } from '../jobs/dailyRideGeneratorJob.js';
 
 // @desc    Create a new recurring Route Pool (Driver)
 // @route   POST /api/routepools
@@ -77,6 +78,11 @@ export const createRoutePool = async (req, res, next) => {
       status: 'active',
     });
 
+    // Immediately generate tomorrow's daily ride for this pool so riders can search and book right away
+    generateDailyRides().catch((err) => {
+      console.error('Error generating daily rides after pool creation:', err.message);
+    });
+
     res.status(201).json({
       message: 'Route pool created successfully',
       routePool: pool,
@@ -115,6 +121,12 @@ export const toggleRoutePoolStatus = async (req, res, next) => {
 
     pool.status = pool.status === 'active' ? 'paused' : 'active';
     await pool.save();
+
+    if (pool.status === 'active') {
+      generateDailyRides().catch((err) => {
+        console.error('Error generating daily rides after pool activation:', err.message);
+      });
+    }
 
     res.status(200).json({ message: `Route pool is now ${pool.status}`, routePool: pool });
   } catch (error) {

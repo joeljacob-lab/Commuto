@@ -233,10 +233,14 @@ export const searchRides = async (req, res, next) => {
     const searchDate = new Date(date);
     searchDate.setHours(0, 0, 0, 0);
 
-    // 1. Fetch all published rides with seats available for that day
+    // Timezone-resilient 24-hour range (handles UTC vs IST offset)
+    const startRange = new Date(searchDate.getTime() - 12 * 60 * 60 * 1000);
+    const endRange = new Date(searchDate.getTime() + 36 * 60 * 60 * 1000);
+
+    // 1. Fetch all published/booking rides with seats available for that day
     const candidateRides = await Ride.find({
-      date: searchDate,
-      status: 'published',
+      date: { $gte: startRange, $lte: endRange },
+      status: { $in: ['published', 'booking'] },
       availableSeats: { $gt: 0 },
       driverId: { $ne: req.user._id }, // Don't show the user their own rides!
     })

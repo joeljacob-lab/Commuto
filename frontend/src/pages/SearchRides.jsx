@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { searchRides, createBooking } from '../services/api.js';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
@@ -10,8 +10,9 @@ import { Button } from '../components/ui/button';
 import { toast } from '../components/ui/toaster';
 
 const POPULAR_LOCATIONS = [
-  { label: 'Campus Main Gate', coordinates: [76.3284, 10.0438] },
+  { label: 'Campus Main Gate', coordinates: [76.4086, 10.2314] },
   { label: 'Aluva Metro Station', coordinates: [76.3571, 10.1076] },
+  { label: 'Angamaly', coordinates: [76.3865, 10.1958] },
   { label: 'Edappally Toll', coordinates: [76.3078, 10.0261] },
   { label: 'Kalamassery Premier', coordinates: [76.3211, 10.0542] },
   { label: 'Kakkanad Infopark Gate', coordinates: [76.3638, 10.0125] },
@@ -35,15 +36,21 @@ const SearchRides = () => {
   const [originQuery, setOriginQuery] = useState('Aluva Metro Station');
   const [originResults, setOriginResults] = useState([]);
   const [searchingOrigin, setSearchingOrigin] = useState(false);
+  const [showOriginDropdown, setShowOriginDropdown] = useState(false);
+  const originUserTypingRef = useRef(false);
+  const originContainerRef = useRef(null);
 
   // Destination State
   const [destination, setDestination] = useState({
     label: 'Campus Main Gate',
-    coordinates: [76.3284, 10.0438],
+    coordinates: [76.4086, 10.2314],
   });
   const [destQuery, setDestQuery] = useState('Campus Main Gate');
   const [destResults, setDestResults] = useState([]);
   const [searchingDest, setSearchingDest] = useState(false);
+  const [showDestDropdown, setShowDestDropdown] = useState(false);
+  const destUserTypingRef = useRef(false);
+  const destContainerRef = useRef(null);
 
   // Date and Time State
   const [date, setDate] = useState(getTomorrowDateStr());
@@ -55,23 +62,57 @@ const SearchRides = () => {
   const [error, setError] = useState('');
   const [searchAttempted, setSearchAttempted] = useState(false);
 
+  // Close dropdowns when clicking anywhere in background or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (originContainerRef.current && !originContainerRef.current.contains(e.target)) {
+        setShowOriginDropdown(false);
+      }
+      if (destContainerRef.current && !destContainerRef.current.contains(e.target)) {
+        setShowDestDropdown(false);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowOriginDropdown(false);
+        setShowDestDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const handleOriginChange = (val) => {
+    originUserTypingRef.current = true;
     setOriginQuery(val);
     if (!val || val.length < 3) {
       setOriginResults([]);
+      setShowOriginDropdown(false);
+    } else {
+      setShowOriginDropdown(true);
     }
   };
 
   const handleDestChange = (val) => {
+    destUserTypingRef.current = true;
     setDestQuery(val);
     if (!val || val.length < 3) {
       setDestResults([]);
+      setShowDestDropdown(false);
+    } else {
+      setShowDestDropdown(true);
     }
   };
 
-  // Debounced Origin Geocoding
+  // Debounced Origin Geocoding: ONLY runs when user actively types
   useEffect(() => {
-    if (!originQuery || originQuery.length < 3) return;
+    if (!originUserTypingRef.current || !originQuery || originQuery.length < 3) return;
 
     const timer = setTimeout(async () => {
       setSearchingOrigin(true);
@@ -88,12 +129,15 @@ const SearchRides = () => {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
             originQuery
-          )}&countrycodes=in&limit=4`,
+          )}&countrycodes=in&viewbox=76.0,10.5,76.6,9.8&bounded=0&limit=5`,
           { headers: { 'Accept-Language': 'en' } }
         );
         const data = await res.json();
 
-        setOriginResults([...presets, ...data]);
+        if (originUserTypingRef.current) {
+          setOriginResults([...presets, ...data]);
+          setShowOriginDropdown(true);
+        }
       } catch (err) {
         console.error('Origin geocoding error:', err);
       } finally {
@@ -104,9 +148,9 @@ const SearchRides = () => {
     return () => clearTimeout(timer);
   }, [originQuery]);
 
-  // Debounced Destination Geocoding
+  // Debounced Destination Geocoding: ONLY runs when user actively types
   useEffect(() => {
-    if (!destQuery || destQuery.length < 3) return;
+    if (!destUserTypingRef.current || !destQuery || destQuery.length < 3) return;
 
     const timer = setTimeout(async () => {
       setSearchingDest(true);
@@ -123,12 +167,15 @@ const SearchRides = () => {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
             destQuery
-          )}&countrycodes=in&limit=4`,
+          )}&countrycodes=in&viewbox=76.0,10.5,76.6,9.8&bounded=0&limit=5`,
           { headers: { 'Accept-Language': 'en' } }
         );
         const data = await res.json();
 
-        setDestResults([...presets, ...data]);
+        if (destUserTypingRef.current) {
+          setDestResults([...presets, ...data]);
+          setShowDestDropdown(true);
+        }
       } catch (err) {
         console.error('Dest geocoding error:', err);
       } finally {
@@ -140,6 +187,10 @@ const SearchRides = () => {
   }, [destQuery]);
 
   const handleUseCurrentLocation = () => {
+    originUserTypingRef.current = false;
+    setShowOriginDropdown(false);
+    setOriginResults([]);
+
     if (!navigator.geolocation) {
       toast.warning('Geolocation is not supported by your browser.', { title: 'Location Unavailable' });
       return;
@@ -157,6 +208,7 @@ const SearchRides = () => {
         });
         setOriginQuery('My Current Location');
         setOriginResults([]);
+        setShowOriginDropdown(false);
         toast.info('Set origin to your current GPS coordinates.', { title: 'Location Detected' });
       },
       () => {
@@ -166,6 +218,7 @@ const SearchRides = () => {
   };
 
   const handleSelectOrigin = (item) => {
+    originUserTypingRef.current = false;
     const label = item.display_name.split(',')[0].replace(' (Campus Preset)', '');
     setOrigin({
       label,
@@ -173,9 +226,11 @@ const SearchRides = () => {
     });
     setOriginQuery(label);
     setOriginResults([]);
+    setShowOriginDropdown(false);
   };
 
   const handleSelectDest = (item) => {
+    destUserTypingRef.current = false;
     const label = item.display_name.split(',')[0].replace(' (Campus Preset)', '');
     setDestination({
       label,
@@ -183,6 +238,7 @@ const SearchRides = () => {
     });
     setDestQuery(label);
     setDestResults([]);
+    setShowDestDropdown(false);
   };
 
   const handleSearch = async (e) => {
@@ -192,11 +248,77 @@ const SearchRides = () => {
     setSearchAttempted(true);
 
     try {
+      let searchOrigin = origin;
+      // Auto-resolve origin if user typed something new and didn't click dropdown
+      if (originQuery && originQuery.trim() !== origin.label?.trim()) {
+        if (originResults.length > 0) {
+          const topItem = originResults[0];
+          const label = topItem.display_name.split(',')[0].replace(' (Campus Preset)', '');
+          searchOrigin = {
+            label,
+            coordinates: [parseFloat(topItem.lon), parseFloat(topItem.lat)],
+          };
+          setOrigin(searchOrigin);
+        } else {
+          try {
+            const geoRes = await fetch(
+              `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+                originQuery
+              )}&countrycodes=in&viewbox=76.0,10.5,76.6,9.8&bounded=0&limit=1`,
+              { headers: { 'Accept-Language': 'en' } }
+            );
+            const geoData = await geoRes.json();
+            if (geoData?.[0]) {
+              searchOrigin = {
+                label: originQuery,
+                coordinates: [parseFloat(geoData[0].lon), parseFloat(geoData[0].lat)],
+              };
+              setOrigin(searchOrigin);
+            }
+          } catch (e) {
+            console.error('Auto-geocoding origin failed:', e);
+          }
+        }
+      }
+
+      let searchDest = destination;
+      // Auto-resolve destination if user typed something new and didn't click dropdown
+      if (destQuery && destQuery.trim() !== destination.label?.trim()) {
+        if (destResults.length > 0) {
+          const topItem = destResults[0];
+          const label = topItem.display_name.split(',')[0].replace(' (Campus Preset)', '');
+          searchDest = {
+            label,
+            coordinates: [parseFloat(topItem.lon), parseFloat(topItem.lat)],
+          };
+          setDestination(searchDest);
+        } else {
+          try {
+            const geoRes = await fetch(
+              `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+                destQuery
+              )}&countrycodes=in&viewbox=76.0,10.5,76.6,9.8&bounded=0&limit=1`,
+              { headers: { 'Accept-Language': 'en' } }
+            );
+            const geoData = await geoRes.json();
+            if (geoData?.[0]) {
+              searchDest = {
+                label: destQuery,
+                coordinates: [parseFloat(geoData[0].lon), parseFloat(geoData[0].lat)],
+              };
+              setDestination(searchDest);
+            }
+          } catch (e) {
+            console.error('Auto-geocoding dest failed:', e);
+          }
+        }
+      }
+
       const response = await searchRides({
-        originLng: origin.coordinates[0],
-        originLat: origin.coordinates[1],
-        destLng: destination.coordinates[0],
-        destLat: destination.coordinates[1],
+        originLng: searchOrigin.coordinates[0],
+        originLat: searchOrigin.coordinates[1],
+        destLng: searchDest.coordinates[0],
+        destLat: searchDest.coordinates[1],
         date,
         time,
       });
@@ -263,7 +385,7 @@ const SearchRides = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* ORIGIN BOX */}
-            <div className="space-y-2 relative">
+            <div className="space-y-2 relative" ref={originContainerRef}>
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-foreground">
                   Pickup Location
@@ -286,6 +408,11 @@ const SearchRides = () => {
                   placeholder="Search boarding point..."
                   value={originQuery}
                   onChange={(e) => handleOriginChange(e.target.value)}
+                  onFocus={() => {
+                    if (originResults.length > 0 && originUserTypingRef.current) {
+                      setShowOriginDropdown(true);
+                    }
+                  }}
                 />
                 <MapPin className="w-4 h-4 text-muted-foreground absolute right-3.5 top-3 pointer-events-none" />
               </div>
@@ -297,7 +424,7 @@ const SearchRides = () => {
               )}
 
               {/* Suggestions Dropdown */}
-              {originResults.length > 0 && (
+              {showOriginDropdown && originResults.length > 0 && (
                 <ul className="absolute z-20 w-full bg-card border border-border rounded-[var(--radius)] mt-1 shadow-lg max-h-48 overflow-y-auto">
                   {originResults.map((item, idx) => (
                     <li
@@ -305,9 +432,16 @@ const SearchRides = () => {
                       onClick={() => handleSelectOrigin(item)}
                       className="p-2.5 text-xs hover:bg-secondary cursor-pointer border-b border-border/50 flex items-center justify-between transition"
                     >
-                      <span className="truncate text-foreground">{item.display_name}</span>
+                      <div className="flex flex-col text-left truncate mr-2">
+                        <span className="truncate text-foreground font-medium">
+                          {item.display_name.split(',')[0]}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {item.display_name.split(',').slice(1, 4).join(', ').trim()}
+                        </span>
+                      </div>
                       {item.isPreset && (
-                        <span className="text-[9px] bg-secondary text-primary px-1.5 py-0.5 rounded font-bold border border-border">
+                        <span className="text-[9px] bg-secondary text-primary px-1.5 py-0.5 rounded font-bold border border-border shrink-0">
                           Preset
                         </span>
                       )}
@@ -325,9 +459,11 @@ const SearchRides = () => {
                       type="button"
                       key={loc.label}
                       onClick={() => {
+                        originUserTypingRef.current = false;
                         setOrigin(loc);
                         setOriginQuery(loc.label);
                         setOriginResults([]);
+                        setShowOriginDropdown(false);
                       }}
                       className={`text-[11px] px-2.5 py-1 rounded-[var(--radius)] border transition cursor-pointer ${
                         origin.label === loc.label
@@ -343,7 +479,7 @@ const SearchRides = () => {
             </div>
 
             {/* DESTINATION BOX */}
-            <div className="space-y-2 relative">
+            <div className="space-y-2 relative" ref={destContainerRef}>
               <label className="block text-xs font-semibold uppercase tracking-wider text-foreground">
                 Destination / Drop-off
               </label>
@@ -356,6 +492,11 @@ const SearchRides = () => {
                   placeholder="Search destination or campus gate..."
                   value={destQuery}
                   onChange={(e) => handleDestChange(e.target.value)}
+                  onFocus={() => {
+                    if (destResults.length > 0 && destUserTypingRef.current) {
+                      setShowDestDropdown(true);
+                    }
+                  }}
                 />
                 <MapPin className="w-4 h-4 text-primary absolute right-3.5 top-3 pointer-events-none" />
               </div>
@@ -367,7 +508,7 @@ const SearchRides = () => {
               )}
 
               {/* Suggestions Dropdown */}
-              {destResults.length > 0 && (
+              {showDestDropdown && destResults.length > 0 && (
                 <ul className="absolute z-20 w-full bg-card border border-border rounded-[var(--radius)] mt-1 shadow-lg max-h-48 overflow-y-auto">
                   {destResults.map((item, idx) => (
                     <li
@@ -375,9 +516,16 @@ const SearchRides = () => {
                       onClick={() => handleSelectDest(item)}
                       className="p-2.5 text-xs hover:bg-secondary cursor-pointer border-b border-border/50 flex items-center justify-between transition"
                     >
-                      <span className="truncate text-foreground">{item.display_name}</span>
+                      <div className="flex flex-col text-left truncate mr-2">
+                        <span className="truncate text-foreground font-medium">
+                          {item.display_name.split(',')[0]}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {item.display_name.split(',').slice(1, 4).join(', ').trim()}
+                        </span>
+                      </div>
                       {item.isPreset && (
-                        <span className="text-[9px] bg-secondary text-primary px-1.5 py-0.5 rounded font-bold border border-border">
+                        <span className="text-[9px] bg-secondary text-primary px-1.5 py-0.5 rounded font-bold border border-border shrink-0">
                           Preset
                         </span>
                       )}
@@ -395,9 +543,11 @@ const SearchRides = () => {
                       type="button"
                       key={loc.label}
                       onClick={() => {
+                        destUserTypingRef.current = false;
                         setDestination(loc);
                         setDestQuery(loc.label);
                         setDestResults([]);
+                        setShowDestDropdown(false);
                       }}
                       className={`text-[11px] px-2.5 py-1 rounded-[var(--radius)] border transition cursor-pointer ${
                         destination.label === loc.label

@@ -16,8 +16,9 @@ import { toast } from '../../components/ui/toaster';
 import { getMyVehicles, createOneOffRide } from '../../services/api';
 
 const POPULAR_LOCATIONS = [
-  { label: 'Campus Main Gate', coordinates: [76.3284, 10.0438] },
+  { label: 'Campus Main Gate', coordinates: [76.4086, 10.2314] },
   { label: 'Aluva Metro Station', coordinates: [76.3571, 10.1076] },
+  { label: 'Angamaly', coordinates: [76.3865, 10.1958] },
   { label: 'Edappally Toll', coordinates: [76.3078, 10.0261] },
   { label: 'Kalamassery Premier', coordinates: [76.3211, 10.0542] },
   { label: 'Kakkanad Infopark Gate', coordinates: [76.3638, 10.0125] },
@@ -35,7 +36,7 @@ function CreateOneOffRide() {
   });
   const [destination, setDestination] = useState({
     label: 'Campus Main Gate',
-    coordinates: [76.3284, 10.0438],
+    coordinates: [76.4086, 10.2314],
   });
 
   const [originQuery, setOriginQuery] = useState('Aluva Metro Station');
@@ -74,7 +75,7 @@ function CreateOneOffRide() {
     if (!query.trim()) return;
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=in`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=in&viewbox=76.0,10.5,76.6,9.8&bounded=0`
       );
       const data = await res.json();
       if (target === 'origin') setOriginResults(data);
