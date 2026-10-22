@@ -130,12 +130,20 @@ const MyBookings = () => {
 
     try {
       setReportSubmitting(true);
-      const againstUserId = typeof selectedBookingForReport.rideId?.driverId === 'object'
-        ? selectedBookingForReport.rideId.driverId._id
-        : selectedBookingForReport.rideId?.driverId;
+      const ride = selectedBookingForReport.rideId || {};
+      const againstUserId = typeof ride.driverId === 'object'
+        ? (ride.driverId?._id || ride.driverId?.collegeId)
+        : ride.driverId;
+
+      if (!againstUserId) {
+        toast.error('Driver information could not be found for this booking.', { title: 'Report Error' });
+        setReportSubmitting(false);
+        return;
+      }
 
       await createReport({
-        rideId: selectedBookingForReport.rideId._id,
+        rideId: ride._id,
+        against: againstUserId,
         againstUserId,
         description: reportDescription.trim(),
       });
@@ -475,7 +483,18 @@ const MyBookings = () => {
                 Report Trip Issue
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                Complaints are reviewed by college administrators.
+                {selectedBookingForReport?.rideId?.driverId ? (
+                  <>
+                    Reporting driver{' '}
+                    <strong className="text-foreground">
+                      {typeof selectedBookingForReport.rideId.driverId === 'object'
+                        ? (selectedBookingForReport.rideId.driverId.name || selectedBookingForReport.rideId.driverId._id)
+                        : selectedBookingForReport.rideId.driverId}
+                    </strong>. Complaints are reviewed by college administrators.
+                  </>
+                ) : (
+                  'Complaints are reviewed by college administrators.'
+                )}
               </p>
             </div>
 

@@ -10,7 +10,8 @@ import { recordReportFlag } from '../services/trustService.js';
  */
 export const createReport = async (req, res, next) => {
   try {
-    const { against, rideId, description } = req.body;
+    const against = req.body.against || req.body.againstUserId;
+    const { rideId, description } = req.body;
     const reportedBy = req.user._id;
 
     // 1. Validation
